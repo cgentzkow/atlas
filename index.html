@@ -331,7 +331,7 @@
 
 <script>
 // ════════════════════════════════════════════
-// RETAILER DOMAIN LOOKUP (for Clearbit logos)
+// RETAILER DOMAIN LOOKUP
 // ════════════════════════════════════════════
 const DOMAINS = {
   'cvs': 'cvs.com', 'cvs pharmacy': 'cvs.com',
@@ -498,17 +498,24 @@ async function geocodeSubject() {
 function getDomain(name) {
   const k = name.toLowerCase().trim();
   if (DOMAINS[k]) return DOMAINS[k];
-  // Try partial match
   for (const [key, domain] of Object.entries(DOMAINS)) {
     if (k.includes(key) || key.includes(k)) return domain;
   }
   return null;
 }
 
-function getLogoUrl(name) {
+// Returns ordered list of logo URLs to try (fallback chain)
+function getLogoUrls(name) {
   const domain = getDomain(name) || name.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
-  return `https://logo.clearbit.com/${domain}?size=128`;
+  return [
+    `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=128&format=png`,
+    `https://logo.clearbit.com/${domain}`,
+    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+  ];
 }
+
+// Keep for backwards compat
+function getLogoUrl(name) { return getLogoUrls(name)[0]; }
 
 function getInitials(name) {
   return name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -543,9 +550,9 @@ async function addRetailer(name, address, coordsOverride) {
 
   const id = 'r' + Date.now() + Math.random().toString(36).slice(2,6);
   const color = nextColor();
-  const logoUrl = getLogoUrl(name);
+  const logoUrls = getLogoUrls(name);
 
-  const r = { id, name, coords, color, logoUrl, loaded: false, size: globalSize, marker: null };
+  const r = { id, name, coords, color, logoUrl: logoUrls[0], logoUrls, loaded: false, size: globalSize, marker: null };
   retailers.push(r);
   await placeMarker(r);
   renderList();
@@ -571,13 +578,19 @@ function nearbyCoords() {
 async function placeMarker(r) {
   if (r.marker) r.marker.remove();
 
-  // Pre-check if logo loads
+  // Try each logo URL in order until one loads
   await new Promise(resolve => {
-    const img = new Image();
-    img.onload  = () => { r.loaded = true;  resolve(); };
-    img.onerror = () => { r.loaded = false; resolve(); };
-    img.src = r.logoUrl;
-    setTimeout(resolve, 3000); // timeout
+    const urls = [...(r.logoUrls || [r.logoUrl])];
+    function tryNext() {
+      if (!urls.length) { r.loaded = false; resolve(); return; }
+      const url = urls.shift();
+      const img = new Image();
+      img.onload  = () => { r.logoUrl = url; r.loaded = true;  resolve(); };
+      img.onerror = () => tryNext();
+      img.src = url;
+    }
+    tryNext();
+    setTimeout(() => { r.loaded = false; resolve(); }, 5000);
   });
 
   const icon = buildIcon(r);
