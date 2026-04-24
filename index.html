@@ -4,277 +4,139 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Atlas — Retailer Map Maker</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <style>
     :root { color-scheme: light; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #111827;
-      color: #f3f4f6;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      background: #111827; color: #f3f4f6;
+      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
     }
 
     /* ── Header ── */
     #header {
-      background: #1f2937;
-      padding: 10px 18px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      border-bottom: 1px solid #374151;
-      flex-shrink: 0;
+      background: #1f2937; padding: 10px 18px;
+      display: flex; align-items: center; gap: 14px;
+      border-bottom: 1px solid #374151; flex-shrink: 0;
     }
     #header h1 { font-size: 16px; font-weight: 700; color: #f9fafb; letter-spacing: -0.3px; }
     #header .subtitle { font-size: 12px; color: #6b7280; }
 
-    /* ── Control Bar ── */
-    #controls {
-      background: #1f2937;
-      padding: 10px 18px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      border-bottom: 1px solid #374151;
-      flex-shrink: 0;
-      flex-wrap: wrap;
+    /* ── Control Rows ── */
+    .ctrl-row {
+      background: #1f2937; padding: 8px 18px;
+      display: flex; gap: 8px; align-items: center;
+      border-bottom: 1px solid #374151; flex-shrink: 0; flex-wrap: wrap;
     }
-
     .ctrl-group { display: flex; flex-direction: column; gap: 3px; }
     .ctrl-label { font-size: 10px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.5px; }
 
     input[type="text"] {
-      background: #374151;
-      border: 1px solid #4b5563;
-      color: #f3f4f6;
-      padding: 7px 11px;
-      border-radius: 6px;
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.15s;
+      background: #374151; border: 1px solid #4b5563; color: #f3f4f6;
+      padding: 7px 11px; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.15s;
     }
     input[type="text"]:focus { border-color: #3b82f6; }
     input[type="text"]::placeholder { color: #6b7280; }
-
-    #subject-input { width: 260px; }
+    #subject-input { width: 280px; }
     #retailer-name-input { width: 160px; }
-    #retailer-addr-input { width: 200px; }
+    #retailer-addr-input { width: 220px; }
+
+    /* Google autocomplete dropdown dark styling */
+    .pac-container {
+      background: #1f2937 !important; border: 1px solid #374151 !important;
+      border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+    }
+    .pac-item { color: #d1d5db !important; border-top: 1px solid #374151 !important; padding: 6px 12px; cursor: pointer; }
+    .pac-item:hover { background: #374151 !important; }
+    .pac-item-query { color: #f9fafb !important; font-size: 13px; }
+    .pac-matched { color: #60a5fa !important; }
 
     button {
-      padding: 7px 14px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      transition: all 0.15s;
-      white-space: nowrap;
+      padding: 7px 13px; border-radius: 6px; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 600; transition: all 0.15s; white-space: nowrap;
     }
-    .btn-blue   { background: #3b82f6; color: white; }
-    .btn-blue:hover   { background: #2563eb; }
-    .btn-red    { background: #ef4444; color: white; }
-    .btn-red:hover    { background: #dc2626; }
-    .btn-green  { background: #10b981; color: white; }
-    .btn-green:hover  { background: #059669; }
-    .btn-amber  { background: #f59e0b; color: white; }
-    .btn-amber:hover  { background: #d97706; }
-    .btn-gray   { background: #374151; color: #d1d5db; border: 1px solid #4b5563; }
-    .btn-gray:hover   { background: #4b5563; }
+    .btn-blue  { background: #3b82f6; color: white; } .btn-blue:hover  { background: #2563eb; }
+    .btn-red   { background: #ef4444; color: white; } .btn-red:hover   { background: #dc2626; }
+    .btn-green { background: #10b981; color: white; } .btn-green:hover { background: #059669; }
+    .btn-amber { background: #f59e0b; color: white; } .btn-amber:hover { background: #d97706; }
+    .btn-gray  { background: #374151; color: #d1d5db; border: 1px solid #4b5563; }
+    .btn-gray:hover { background: #4b5563; }
+    .btn-active { background: #1d4ed8 !important; color: white !important; box-shadow: inset 0 0 0 2px #93c5fd; }
+    .btn-ring-active { background: #1e3a5f !important; color: #93c5fd !important; border-color: #3b82f6 !important; }
+    .btn-draw-active { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #7c3aed !important; }
 
-    .sep { width: 1px; height: 30px; background: #374151; }
+    .sep { width: 1px; height: 28px; background: #374151; flex-shrink: 0; }
+    .row-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; }
 
     /* ── Map Container ── */
-    #map-wrap {
-      flex: 1;
-      position: relative;
-      overflow: hidden;
-    }
-
-    #map {
-      width: 100%;
-      height: 100%;
-    }
+    #map-wrap { flex: 1; position: relative; overflow: hidden; }
+    #map { width: 100%; height: 100%; }
 
     /* ── Side Panel ── */
     #panel {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      width: 260px;
-      background: rgba(17, 24, 39, 0.92);
-      backdrop-filter: blur(8px);
-      border: 1px solid #374151;
-      border-radius: 10px;
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      max-height: calc(100vh - 120px);
+      position: absolute; top: 12px; right: 12px; width: 260px;
+      background: rgba(17,24,39,0.93); backdrop-filter: blur(8px);
+      border: 1px solid #374151; border-radius: 10px; z-index: 1000;
+      display: flex; flex-direction: column; max-height: calc(100vh - 130px);
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
-
     #panel-header {
-      padding: 12px 14px;
-      border-bottom: 1px solid #374151;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      padding: 12px 14px; border-bottom: 1px solid #374151;
+      display: flex; align-items: center; justify-content: space-between;
     }
     #panel-header span { font-size: 13px; font-weight: 600; color: #f9fafb; }
     #retailer-count { font-size: 11px; color: #6b7280; background: #374151; padding: 2px 7px; border-radius: 10px; }
-
-    #retailer-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 6px;
-    }
+    #retailer-list { flex: 1; overflow-y: auto; padding: 6px; }
     #retailer-list::-webkit-scrollbar { width: 4px; }
-    #retailer-list::-webkit-scrollbar-track { background: transparent; }
     #retailer-list::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
-
-    .r-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
+    .r-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
     .r-item:hover { background: #1f2937; }
     .r-item.selected { background: #1e3a5f; }
-
-    .r-logo {
-      width: 30px; height: 30px;
-      border-radius: 5px;
-      object-fit: contain;
-      background: white;
-      padding: 2px;
-      flex-shrink: 0;
-    }
-    .r-logo-fb {
-      width: 30px; height: 30px;
-      border-radius: 5px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: 700;
-      color: white;
-      flex-shrink: 0;
-    }
-
+    .r-logo { width: 30px; height: 30px; border-radius: 5px; object-fit: contain; background: white; padding: 2px; flex-shrink: 0; }
+    .r-logo-fb { width: 30px; height: 30px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: white; flex-shrink: 0; }
     .r-name { font-size: 12px; color: #e5e7eb; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    .r-del {
-      width: 20px; height: 20px;
-      background: transparent;
-      border: none;
-      color: #4b5563;
-      cursor: pointer;
-      border-radius: 4px;
-      font-size: 13px;
-      display: flex; align-items: center; justify-content: center;
-      padding: 0;
-      flex-shrink: 0;
-    }
+    .r-del { width: 20px; height: 20px; background: transparent; border: none; color: #4b5563; cursor: pointer; border-radius: 4px; font-size: 13px; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
     .r-del:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
-
-    #panel-footer {
-      padding: 10px 14px;
-      border-top: 1px solid #374151;
-    }
+    #panel-footer { padding: 10px 14px; border-top: 1px solid #374151; }
     .footer-label { font-size: 11px; color: #6b7280; margin-bottom: 5px; display: flex; justify-content: space-between; }
-    input[type="range"] {
-      width: 100%;
-      accent-color: #3b82f6;
-      height: 4px;
-      cursor: pointer;
-    }
+    input[type="range"] { width: 100%; accent-color: #3b82f6; height: 4px; cursor: pointer; }
     .footer-btns { display: flex; gap: 6px; margin-top: 8px; }
     .footer-btns button { flex: 1; font-size: 11px; padding: 6px; }
 
-    /* ── Map overlay buttons ── */
-    .map-fab {
-      position: absolute;
-      bottom: 30px;
-      z-index: 900;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    #fab-left { left: 12px; }
-
     /* ── Status bar ── */
-    #status-bar {
-      background: #111827;
-      border-top: 1px solid #1f2937;
-      padding: 5px 18px;
-      font-size: 11px;
-      color: #6b7280;
-      flex-shrink: 0;
-    }
+    #status-bar { background: #111827; border-top: 1px solid #1f2937; padding: 5px 18px; font-size: 11px; color: #6b7280; flex-shrink: 0; }
     #status-bar span.hi { color: #60a5fa; }
 
-    /* ── Leaflet overrides ── */
-    .leaflet-control-attribution { font-size: 9px !important; }
-    .leaflet-control-zoom a { background: #1f2937 !important; color: #d1d5db !important; border-color: #374151 !important; }
-    .leaflet-control-zoom a:hover { background: #374151 !important; }
-    .leaflet-popup-content-wrapper { background: #1f2937; color: #f3f4f6; border: 1px solid #374151; border-radius: 8px; }
-    .leaflet-popup-tip { background: #1f2937; }
-
     /* ── Loading overlay ── */
-    #loading {
-      display: none;
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 2000;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: white;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid rgba(255,255,255,0.2);
-      border-top-color: #3b82f6;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    #loading { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; font-size: 14px; color: white; flex-direction: column; gap: 12px; }
+    .spinner { width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Google Maps UI overrides */
+    .gm-style-cc, .gmnoprint a, .gm-style a { display: none !important; }
+    .gm-bundled-control { bottom: 60px !important; }
   </style>
 </head>
 <body>
 
 <!-- Header -->
 <div id="header">
-  <div>
-    <h1>🗺 Atlas</h1>
-  </div>
+  <div><h1>🗺 Atlas</h1></div>
   <span class="subtitle">Retailer Map Maker · Duhs Commercial</span>
   <div style="flex:1"></div>
   <button class="btn-amber" onclick="spreadLogos()" title="Arrange logos in a circle">📐 Spread</button>
   <button class="btn-green" onclick="exportMap()" title="Download as PNG">💾 Export PNG</button>
 </div>
 
-<!-- Controls -->
-<div id="controls">
+<!-- Row 1: Subject + Retailer inputs -->
+<div class="ctrl-row">
   <div class="ctrl-group">
     <span class="ctrl-label">Subject Property</span>
     <input type="text" id="subject-input" placeholder="1234 Main St, San Diego, CA"/>
   </div>
-  <button class="btn-blue" onclick="geocodeSubject()">📍 Set Property</button>
-
+  <button class="btn-blue" onclick="geocodeSubjectManual()">📍 Set Property</button>
   <div class="sep"></div>
-
   <div class="ctrl-group">
     <span class="ctrl-label">Retailer Name</span>
     <input type="text" id="retailer-name-input" placeholder="e.g. Starbucks"/>
@@ -284,19 +146,45 @@
     <input type="text" id="retailer-addr-input" placeholder="Leave blank to place near property"/>
   </div>
   <button class="btn-blue" onclick="addRetailer()">+ Add</button>
+  <div class="sep"></div>
+  <button class="btn-amber" onclick="discoverNearby()" title="Auto-discover nearby businesses">🔍 Discover Nearby</button>
+</div>
 
+<!-- Row 2: Map tools -->
+<div class="ctrl-row">
+  <!-- Map Type -->
+  <span class="row-label">Map:</span>
+  <button id="mt-streets"  class="btn-gray" onclick="setMapType('roadmap')"  title="Street map">🗺 Streets</button>
+  <button id="mt-satellite" class="btn-gray" onclick="setMapType('satellite')" title="Satellite">🛰 Satellite</button>
+  <button id="mt-hybrid"   class="btn-gray btn-active" onclick="setMapType('hybrid')"   title="Satellite + labels">🛰🗺 Hybrid</button>
+  <button id="mt-terrain"  class="btn-gray" onclick="setMapType('terrain')"  title="Terrain / topo">🏔 Terrain</button>
   <div class="sep"></div>
 
-  <button class="btn-amber" onclick="discoverNearby()" title="Auto-discover businesses from OpenStreetMap">🔍 Discover Nearby</button>
+  <!-- Mile Rings -->
+  <span class="row-label">Mile Rings:</span>
+  <button id="ring-1mi" class="btn-gray" onclick="toggleMileRing(1)"  title="1-mile ring">1 mi</button>
+  <button id="ring-3mi" class="btn-gray" onclick="toggleMileRing(3)"  title="3-mile ring">3 mi</button>
+  <button id="ring-5mi" class="btn-gray" onclick="toggleMileRing(5)"  title="5-mile ring">5 mi</button>
+  <div class="sep"></div>
+
+  <!-- Drive Time -->
+  <span class="row-label">Drive Time ~:</span>
+  <button id="ring-1min"  class="btn-gray" onclick="toggleDriveRing(1)"  title="~1 min drive time">1 min</button>
+  <button id="ring-5min"  class="btn-gray" onclick="toggleDriveRing(5)"  title="~5 min drive time">5 min</button>
+  <button id="ring-10min" class="btn-gray" onclick="toggleDriveRing(10)" title="~10 min drive time">10 min</button>
+  <div class="sep"></div>
+
+  <!-- Draw Tools -->
+  <span class="row-label">Draw:</span>
+  <button id="draw-polygon"   class="btn-gray" onclick="setDrawMode('polygon')"   title="Draw polygon (outline property)">⬡ Polygon</button>
+  <button id="draw-rectangle" class="btn-gray" onclick="setDrawMode('rectangle')" title="Draw rectangle">▭ Rectangle</button>
+  <button id="draw-polyline"  class="btn-gray" onclick="setDrawMode('polyline')"  title="Draw line">╱ Line</button>
+  <button class="btn-gray btn-red" style="background:#374151;color:#f87171;border-color:#4b5563;" onclick="clearDrawings()" title="Clear all rings and drawings">🗑 Clear Shapes</button>
 </div>
 
 <!-- Map -->
 <div id="map-wrap">
-  <div id="loading">
-    <div class="spinner"></div>
-    <span id="loading-msg">Loading...</span>
-  </div>
-
+  <div id="loading"><div class="spinner"></div><span id="loading-msg">Loading...</span></div>
   <div id="map"></div>
 
   <!-- Side panel -->
@@ -307,13 +195,12 @@
     </div>
     <div id="retailer-list">
       <div style="color:#4b5563;font-size:12px;text-align:center;padding:20px 14px;">
-        Add retailers using the bar above, or click "Discover Nearby" after setting a property.
+        Add retailers above or click "Discover Nearby" after setting a property.
       </div>
     </div>
     <div id="panel-footer">
       <div class="footer-label">
-        <span>Logo Size</span>
-        <span id="size-val">48px</span>
+        <span>Logo Size</span><span id="size-val">48px</span>
       </div>
       <input type="range" id="size-slider" min="24" max="96" value="48" oninput="bulkResize(this.value)"/>
       <div class="footer-btns">
@@ -331,77 +218,66 @@
 
 <script>
 // ════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════
+const GKEY = 'AIzaSyCLnBGWiIGI8OtYlHgLImzn0JY5FVjuQ6k';
+
+// Miles to meters
+const MILES_M = { 1: 1609, 3: 4828, 5: 8047 };
+// Approx drive-time radii (urban ~25mph avg) in meters
+const DRIVE_M = { 1: 670, 5: 3350, 10: 6700 };
+
+// ════════════════════════════════════════════
 // RETAILER DOMAIN LOOKUP
 // ════════════════════════════════════════════
 const DOMAINS = {
-  'cvs': 'cvs.com', 'cvs pharmacy': 'cvs.com',
-  'walgreens': 'walgreens.com', 'rite aid': 'riteaid.com',
-  'starbucks': 'starbucks.com',
-  "mcdonald's": 'mcdonalds.com', 'mcdonalds': 'mcdonalds.com',
-  'chick-fil-a': 'chickfila.com', 'chick fil a': 'chickfila.com',
-  'chipotle': 'chipotle.com', 'subway': 'subway.com',
-  'taco bell': 'tacobell.com', 'burger king': 'burgerking.com',
-  "wendy's": 'wendys.com', 'wendys': 'wendys.com',
-  'walmart': 'walmart.com', 'walmart supercenter': 'walmart.com',
-  'target': 'target.com', 'costco': 'costco.com',
-  'home depot': 'homedepot.com', "lowe's": 'lowes.com', 'lowes': 'lowes.com',
-  'kroger': 'kroger.com', 'safeway': 'safeway.com',
-  'whole foods': 'wholefoods.com', "trader joe's": 'traderjoes.com',
-  'aldi': 'aldi.us', 'dollar general': 'dollargeneral.com',
-  'dollar tree': 'dollartree.com', 'five below': 'fivebelow.com',
-  'ross': 'rossstores.com', 'tj maxx': 'tjmaxx.tjx.com',
-  'marshalls': 'marshalls.com', 'old navy': 'oldnavy.com',
-  'gap': 'gap.com', 'h&m': 'hm.com', 'zara': 'zara.com',
-  'bath & body works': 'bathandbodyworks.com',
-  "victoria's secret": 'victoriassecret.com',
-  'american eagle': 'ae.com', 'foot locker': 'footlocker.com',
-  'nike': 'nike.com', 'adidas': 'adidas.com',
-  'ulta': 'ulta.com', 'sephora': 'sephora.com',
-  'best buy': 'bestbuy.com', 'apple': 'apple.com',
-  'gamestop': 'gamestop.com', 'petco': 'petco.com',
-  'petsmart': 'petsmart.com', 'autozone': 'autozone.com',
-  "o'reilly auto parts": 'oreillyauto.com',
-  'chase bank': 'chase.com', 'chase': 'chase.com',
-  'wells fargo': 'wellsfargo.com', 'bank of america': 'bankofamerica.com',
-  'us bank': 'usbank.com', 'td bank': 'td.com',
-  'in-n-out': 'in-n-out.com', 'in n out': 'in-n-out.com',
-  'del taco': 'deltaco.com', 'jack in the box': 'jackinthebox.com',
-  'panda express': 'pandaexpress.com',
-  'panera': 'panerabread.com', 'panera bread': 'panerabread.com',
-  "dunkin'": 'dunkindonuts.com', 'dunkin': 'dunkindonuts.com',
-  'pizza hut': 'pizzahut.com',
-  "domino's": 'dominos.com', 'dominos': 'dominos.com',
-  'little caesars': 'littlecaesars.com',
-  'kfc': 'kfc.com', 'popeyes': 'popeyes.com',
-  'wingstop': 'wingstop.com', "raising cane's": 'raisingcanes.com',
-  'sonic': 'sonicdrivein.com', 'dairy queen': 'dairyqueen.com',
-  'cold stone': 'coldstonecreamery.com', 'baskin robbins': 'baskinrobbins.com',
-  'smoothie king': 'smoothieking.com', "jersey mike's": 'jerseymikes.com',
-  "jimmy john's": 'jimmyjohns.com', 'firehouse subs': 'firehousesubs.com',
-  'shake shack': 'shakeshack.com', 'five guys': 'fiveguys.com',
-  "denny's": 'dennys.com', 'ihop': 'ihop.com',
-  "applebee's": 'applebees.com', "chili's": 'chilis.com',
-  'olive garden': 'olivegarden.com', 'red lobster': 'redlobster.com',
-  'outback steakhouse': 'outback.com', 'buffalo wild wings': 'buffalowildwings.com',
-  'texas roadhouse': 'texasroadhouse.com',
-  '7-eleven': '7-eleven.com', '7 eleven': '7-eleven.com',
-  'circle k': 'circlek.com', 'chevron': 'chevron.com',
-  'shell': 'shell.com', 'arco': 'arco.com',
-  'planet fitness': 'planetfitness.com', 'la fitness': 'lafitness.com',
-  'orangetheory': 'orangetheory.com', 'anytime fitness': 'anytimefitness.com',
-  'crunch fitness': 'crunch.com',
-  'sprouts': 'sprouts.com', 'vons': 'vons.com',
-  'ralphs': 'ralphs.com', 'food 4 less': 'food4less.com',
-  'smart & final': 'smartandfinal.com', 'winco': 'wincofoods.com',
-  'h mart': 'hmart.com', 'hobby lobby': 'hobbylobby.com',
-  'michaels': 'michaels.com', 'big lots': 'biglots.com',
-  'nordstrom rack': 'nordstromrack.com', 'nordstrom': 'nordstrom.com',
-  "macy's": 'macys.com', 'jcpenney': 'jcpenney.com',
-  "kohl's": 'kohls.com', "dick's sporting goods": 'dickssportinggoods.com',
-  'rei': 'rei.com', 'academy sports': 'academy.com',
-  'office depot': 'officedepot.com', 'staples': 'staples.com',
-  'fedex': 'fedex.com', 'ups store': 'theupsstore.com',
-  'post office': 'usps.com', 'usps': 'usps.com',
+  'cvs':'cvs.com','cvs pharmacy':'cvs.com','walgreens':'walgreens.com','rite aid':'riteaid.com',
+  'starbucks':'starbucks.com',"mcdonald's":'mcdonalds.com','mcdonalds':'mcdonalds.com',
+  'chick-fil-a':'chickfila.com','chick fil a':'chickfila.com','chipotle':'chipotle.com',
+  'subway':'subway.com','taco bell':'tacobell.com','burger king':'burgerking.com',
+  "wendy's":'wendys.com','wendys':'wendys.com','walmart':'walmart.com',
+  'walmart supercenter':'walmart.com','target':'target.com','costco':'costco.com',
+  'home depot':'homedepot.com',"lowe's":'lowes.com','lowes':'lowes.com',
+  'kroger':'kroger.com','safeway':'safeway.com','whole foods':'wholefoods.com',
+  "trader joe's":'traderjoes.com','aldi':'aldi.us','dollar general':'dollargeneral.com',
+  'dollar tree':'dollartree.com','five below':'fivebelow.com','ross':'rossstores.com',
+  'tj maxx':'tjmaxx.tjx.com','marshalls':'marshalls.com','old navy':'oldnavy.com',
+  'gap':'gap.com','h&m':'hm.com','zara':'zara.com',
+  'bath & body works':'bathandbodyworks.com',"victoria's secret":'victoriassecret.com',
+  'american eagle':'ae.com','foot locker':'footlocker.com','nike':'nike.com',
+  'adidas':'adidas.com','ulta':'ulta.com','sephora':'sephora.com',
+  'best buy':'bestbuy.com','apple':'apple.com','gamestop':'gamestop.com',
+  'petco':'petco.com','petsmart':'petsmart.com','autozone':'autozone.com',
+  "o'reilly auto parts":'oreillyauto.com','chase bank':'chase.com','chase':'chase.com',
+  'wells fargo':'wellsfargo.com','bank of america':'bankofamerica.com',
+  'us bank':'usbank.com','td bank':'td.com','in-n-out':'in-n-out.com',
+  'in n out':'in-n-out.com','del taco':'deltaco.com','jack in the box':'jackinthebox.com',
+  'panda express':'pandaexpress.com','panera':'panerabread.com','panera bread':'panerabread.com',
+  "dunkin'":'dunkindonuts.com','dunkin':'dunkindonuts.com','pizza hut':'pizzahut.com',
+  "domino's":'dominos.com','dominos':'dominos.com','little caesars':'littlecaesars.com',
+  'kfc':'kfc.com','popeyes':'popeyes.com','wingstop':'wingstop.com',
+  "raising cane's":'raisingcanes.com','sonic':'sonicdrivein.com',
+  'dairy queen':'dairyqueen.com','cold stone':'coldstonecreamery.com',
+  'baskin robbins':'baskinrobbins.com','smoothie king':'smoothieking.com',
+  "jersey mike's":'jerseymikes.com',"jimmy john's":'jimmyjohns.com',
+  'firehouse subs':'firehousesubs.com','shake shack':'shakeshack.com',
+  'five guys':'fiveguys.com',"denny's":'dennys.com','ihop':'ihop.com',
+  "applebee's":'applebees.com',"chili's":'chilis.com','olive garden':'olivegarden.com',
+  'red lobster':'redlobster.com','outback steakhouse':'outback.com',
+  'buffalo wild wings':'buffalowildwings.com','texas roadhouse':'texasroadhouse.com',
+  '7-eleven':'7-eleven.com','7 eleven':'7-eleven.com','circle k':'circlek.com',
+  'chevron':'chevron.com','shell':'shell.com','arco':'arco.com',
+  'planet fitness':'planetfitness.com','la fitness':'lafitness.com',
+  'orangetheory':'orangetheory.com','anytime fitness':'anytimefitness.com',
+  'crunch fitness':'crunch.com','sprouts':'sprouts.com','vons':'vons.com',
+  'ralphs':'ralphs.com','food 4 less':'food4less.com','smart & final':'smartandfinal.com',
+  'winco':'wincofoods.com','h mart':'hmart.com','hobby lobby':'hobbylobby.com',
+  'michaels':'michaels.com','big lots':'biglots.com','nordstrom rack':'nordstromrack.com',
+  'nordstrom':'nordstrom.com',"macy's":'macys.com','jcpenney':'jcpenney.com',
+  "kohl's":'kohls.com',"dick's sporting goods":'dickssportinggoods.com',
+  'rei':'rei.com','academy sports':'academy.com','office depot':'officedepot.com',
+  'staples':'staples.com','fedex':'fedex.com','ups store':'theupsstore.com',
+  'post office':'usps.com','usps':'usps.com',
 };
 
 const BRAND_COLORS = [
@@ -414,82 +290,393 @@ const BRAND_COLORS = [
 // STATE
 // ════════════════════════════════════════════
 let map, subjectMarker = null, subjectLatLng = null;
-let retailers = [];
-let selectedId = null;
-let colorIdx = 0;
-let globalSize = 48;
-let showLabels = true;
+let retailers = [], selectedId = null, colorIdx = 0;
+let globalSize = 48, showLabels = true;
+let drawingManager = null, drawnShapes = [];
+let mileCircles = {}, driveCircles = {};
+let activeRings = new Set();
+let currentDrawMode = null;
+let subjectAC = null, retailerAC = null;
+let placesService = null, geocoder = null;
+let LogoOverlay;
 
 // ════════════════════════════════════════════
-// MAP INIT
+// MAP INIT (called by Google Maps API)
 // ════════════════════════════════════════════
 function initMap() {
-  map = L.map('map', {
-    center: [32.7157, -117.1611],
-    zoom: 16,
+
+  // ── Define custom overlay class ──
+  LogoOverlay = class extends google.maps.OverlayView {
+    constructor(latlng, retailer) {
+      super();
+      this.latlng = typeof latlng.lat === 'function' ? latlng : new google.maps.LatLng(latlng.lat, latlng.lng);
+      this.r = retailer;
+      this.el = null;
+    }
+
+    onAdd() {
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute;z-index:100;transition:none;';
+      this.el = el;
+      this._buildContent();
+
+      // Drag
+      let dragging = false, startXY = null, startLL = null;
+      el.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation(); e.preventDefault();
+        dragging = true;
+        startXY = { x: e.clientX, y: e.clientY };
+        startLL = this.latlng;
+        map.setOptions({ draggable: false });
+
+        const onMove = (ev) => {
+          if (!dragging) return;
+          const proj = this.getProjection();
+          const sp = proj.fromLatLngToDivPixel(startLL);
+          const np = new google.maps.Point(sp.x + ev.clientX - startXY.x, sp.y + ev.clientY - startXY.y);
+          this.latlng = proj.fromDivPixelToLatLng(np);
+          this.r.coords = { lat: this.latlng.lat(), lng: this.latlng.lng() };
+          this.draw();
+        };
+        const onUp = () => {
+          dragging = false;
+          map.setOptions({ draggable: true });
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectRetailer(this.r.id);
+      });
+
+      this.getPanes().overlayMouseTarget.appendChild(el);
+    }
+
+    _buildContent() {
+      if (!this.el) return;
+      const r = this.r, s = r.size || globalSize;
+      const sel = selectedId === r.id;
+      const border = sel ? '2.5px solid #3b82f6' : '2px solid rgba(255,255,255,0.9)';
+      const glow = sel ? '0 0 0 3px rgba(59,130,246,0.5),0 4px 16px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.45)';
+      const inner = r.loaded
+        ? `<img src="${r.logoUrl}" style="width:${s}px;height:${s}px;object-fit:contain;display:block;border-radius:4px;" crossorigin="anonymous"/>`
+        : `<div style="width:${s}px;height:${s}px;background:${r.color};display:flex;align-items:center;justify-content:center;font-size:${Math.floor(s*.32)}px;font-weight:800;color:white;border-radius:4px;">${getInitials(r.name)}</div>`;
+      const label = showLabels
+        ? `<div style="font-size:${Math.max(8,Math.floor(s*.19))}px;font-weight:700;color:#111;padding:2px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${s+6}px;">${r.name}</div>`
+        : '';
+      this.el.innerHTML = `<div style="background:white;border:${border};border-radius:7px;padding:3px;cursor:move;box-shadow:${glow};user-select:none;">${inner}${label}</div>`;
+    }
+
+    draw() {
+      if (!this.el) return;
+      const proj = this.getProjection();
+      const p = proj.fromLatLngToDivPixel(this.latlng);
+      const s = this.r.size || globalSize;
+      const w = s + 10, h = s + (showLabels ? 26 : 10);
+      this.el.style.left = (p.x - w/2) + 'px';
+      this.el.style.top  = (p.y - h)   + 'px';
+    }
+
+    onRemove() {
+      if (this.el?.parentNode) this.el.parentNode.removeChild(this.el);
+      this.el = null;
+    }
+
+    refresh() { this._buildContent(); this.draw(); }
+    getPosition() { return this.latlng; }
+  };
+
+  // ── Create map ──
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: { lat: 32.7157, lng: -117.1611 },
+    zoom: 15,
+    mapTypeId: 'hybrid',
+    mapTypeControl: false,
+    streetViewControl: false,
+    fullscreenControl: false,
     zoomControl: true,
+    zoomControlOptions: { position: google.maps.ControlPosition.LEFT_BOTTOM },
+    gestureHandling: 'greedy',
   });
 
-  // Satellite tiles (ESRI World Imagery — free, no key)
-  L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { attribution: '© Esri, Maxar, Earthstar Geographics', maxZoom: 19 }
-  ).addTo(map);
+  geocoder     = new google.maps.Geocoder();
+  placesService = new google.maps.places.PlacesService(map);
 
-  // Street name labels overlay
-  L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom: 19, opacity: 0.6 }
-  ).addTo(map);
+  // ── Autocomplete: subject property ──
+  subjectAC = new google.maps.places.Autocomplete(
+    document.getElementById('subject-input'),
+    { componentRestrictions: { country: 'us' }, fields: ['geometry','formatted_address','name'] }
+  );
+  subjectAC.addListener('place_changed', () => {
+    const p = subjectAC.getPlace();
+    if (p?.geometry) {
+      setSubjectLocation({ lat: p.geometry.location.lat(), lng: p.geometry.location.lng() },
+        p.formatted_address || p.name);
+    }
+  });
+
+  // ── Autocomplete: retailer address ──
+  retailerAC = new google.maps.places.Autocomplete(
+    document.getElementById('retailer-addr-input'),
+    { componentRestrictions: { country: 'us' }, fields: ['geometry','formatted_address'] }
+  );
+
+  // ── Drawing manager ──
+  drawingManager = new google.maps.drawing.DrawingManager({
+    drawingMode: null,
+    drawingControl: false,
+    polygonOptions: {
+      fillColor: '#3b82f6', fillOpacity: 0.15,
+      strokeColor: '#3b82f6', strokeWeight: 2.5, editable: true, zIndex: 1
+    },
+    rectangleOptions: {
+      fillColor: '#10b981', fillOpacity: 0.15,
+      strokeColor: '#10b981', strokeWeight: 2.5, editable: true, zIndex: 1
+    },
+    polylineOptions: {
+      strokeColor: '#ef4444', strokeWeight: 3, editable: true, zIndex: 1
+    },
+  });
+  drawingManager.setMap(map);
+  google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
+    drawnShapes.push(e.overlay);
+    drawingManager.setDrawingMode(null);
+    setDrawBtnActive(null);
+    currentDrawMode = null;
+  });
 
   setStatus('Ready. Enter a subject property address and click <span class="hi">Set Property</span>.');
 }
 
 // ════════════════════════════════════════════
-// GEOCODING  (Nominatim — free, no key)
+// SUBJECT PROPERTY
 // ════════════════════════════════════════════
-async function geocode(address) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=us`;
-  const res = await fetch(url, { headers: { 'Accept-Language': 'en', 'User-Agent': 'RetailerMapMaker/1.0' } });
-  const data = await res.json();
-  if (data.length) return { lat: +data[0].lat, lng: +data[0].lon, display: data[0].display_name };
-  return null;
-}
-
-async function geocodeSubject() {
+async function geocodeSubjectManual() {
   const addr = document.getElementById('subject-input').value.trim();
   if (!addr) { alert('Enter an address.'); return; }
   showLoading('Locating property…');
-  const coords = await geocode(addr);
-  hideLoading();
-  if (!coords) { setStatus('Address not found. Try a more specific address.'); return; }
-  subjectLatLng = coords;
-  if (subjectMarker) subjectMarker.remove();
+  geocoder.geocode({ address: addr, region: 'us' }, (results, status) => {
+    hideLoading();
+    if (status === 'OK' && results[0]) {
+      const loc = results[0].geometry.location;
+      setSubjectLocation({ lat: loc.lat(), lng: loc.lng() }, results[0].formatted_address);
+    } else {
+      setStatus('Address not found. Try a more specific address.');
+    }
+  });
+}
 
-  const icon = L.divIcon({
-    html: `<div style="
-      position:relative;
-      width:38px;height:38px;
-      display:flex;align-items:center;justify-content:center;">
-      <div style="
-        background:#ef4444;
-        border:3px solid white;
-        border-radius:50% 50% 50% 0;
-        transform:rotate(-45deg);
-        width:32px;height:32px;
-        box-shadow:0 3px 14px rgba(0,0,0,0.5);">
-      </div>
-      <div style="position:absolute;font-size:15px;margin-bottom:4px;">⭐</div>
-    </div>`,
-    iconSize: [38, 38], iconAnchor: [19, 38], className: ''
+function setSubjectLocation(coords, displayName) {
+  subjectLatLng = coords;
+
+  if (subjectMarker) subjectMarker.setMap(null);
+
+  subjectMarker = new google.maps.Marker({
+    position: coords,
+    map,
+    title: 'Subject Property',
+    zIndex: 999,
+    icon: {
+      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="38" height="48" viewBox="0 0 38 48">
+          <path d="M19 0C8.5 0 0 8.5 0 19c0 14.25 19 29 19 29S38 33.25 38 19C38 8.5 29.5 0 19 0z"
+                fill="#ef4444" stroke="white" stroke-width="2"/>
+          <text x="19" y="24" text-anchor="middle" font-size="16" fill="white">⭐</text>
+        </svg>`)}`,
+      scaledSize: new google.maps.Size(38, 48),
+      anchor: new google.maps.Point(19, 48),
+    }
   });
 
-  subjectMarker = L.marker([coords.lat, coords.lng], { icon })
-    .addTo(map)
-    .bindPopup(`<strong style="color:#f3f4f6">Subject Property</strong><br><span style="color:#9ca3af;font-size:11px">${addr}</span>`);
+  const iw = new google.maps.InfoWindow({
+    content: `<div style="color:#111"><strong>Subject Property</strong><br><small>${displayName}</small></div>`
+  });
+  subjectMarker.addListener('click', () => iw.open(map, subjectMarker));
 
-  map.flyTo([coords.lat, coords.lng], 16, { duration: 1.5 });
-  setStatus(`Subject set: <span class="hi">${addr}</span>. Now add retailers or click Discover Nearby.`);
+  map.panTo(coords);
+  map.setZoom(16);
+
+  // Refresh any active rings to new center
+  refreshRings();
+
+  setStatus(`Subject set: <span class="hi">${displayName}</span>. Now add retailers or click Discover Nearby.`);
+}
+
+// ════════════════════════════════════════════
+// MAP TYPE
+// ════════════════════════════════════════════
+function setMapType(type) {
+  if (!map) return;
+  map.setMapTypeId(type);
+  ['streets','satellite','hybrid','terrain'].forEach(t => {
+    const id = 'mt-' + t;
+    document.getElementById(id)?.classList.remove('btn-active');
+  });
+  const keyMap = { roadmap:'streets', satellite:'satellite', hybrid:'hybrid', terrain:'terrain' };
+  document.getElementById('mt-' + keyMap[type])?.classList.add('btn-active');
+}
+
+// ════════════════════════════════════════════
+// MILE RINGS
+// ════════════════════════════════════════════
+function toggleMileRing(miles) {
+  if (!subjectLatLng) { setStatus('Set a subject property first.'); return; }
+  const key = miles + 'mi';
+  const btnId = 'ring-' + key;
+  if (mileCircles[key]) {
+    mileCircles[key].setMap(null);
+    delete mileCircles[key];
+    document.getElementById(btnId).classList.remove('btn-ring-active');
+    activeRings.delete(key);
+  } else {
+    const colors = { '1mi': '#3b82f6', '3mi': '#10b981', '5mi': '#ef4444' };
+    mileCircles[key] = new google.maps.Circle({
+      map,
+      center: subjectLatLng,
+      radius: MILES_M[miles],
+      strokeColor: colors[key],
+      strokeOpacity: 0.85,
+      strokeWeight: 2,
+      fillOpacity: 0,
+      zIndex: 2,
+    });
+    // Add label
+    mileCircles[key + '_label'] = new google.maps.Marker({
+      position: google.maps.geometry
+        ? google.maps.geometry.spherical.computeOffset(
+            new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
+        : { lat: subjectLatLng.lat + (MILES_M[miles] / 111320), lng: subjectLatLng.lng },
+      map,
+      icon: { url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', scaledSize: new google.maps.Size(1,1) },
+      label: { text: miles + ' mi', color: colors[key], fontWeight: '700', fontSize: '12px' },
+      zIndex: 3,
+    });
+    document.getElementById(btnId).classList.add('btn-ring-active');
+    activeRings.add(key);
+  }
+}
+
+// ════════════════════════════════════════════
+// DRIVE TIME RINGS (approximate)
+// ════════════════════════════════════════════
+function toggleDriveRing(mins) {
+  if (!subjectLatLng) { setStatus('Set a subject property first.'); return; }
+  const key = mins + 'min';
+  const btnId = 'ring-' + key;
+  if (driveCircles[key]) {
+    driveCircles[key].setMap(null);
+    delete driveCircles[key];
+    document.getElementById(btnId).classList.remove('btn-ring-active');
+    activeRings.delete(key);
+  } else {
+    const colors = { '1min': '#a78bfa', '5min': '#f59e0b', '10min': '#f97316' };
+    driveCircles[key] = new google.maps.Circle({
+      map,
+      center: subjectLatLng,
+      radius: DRIVE_M[mins],
+      strokeColor: colors[key],
+      strokeOpacity: 0.8,
+      strokeWeight: 2,
+      strokeDashPattern: [8, 4],
+      fillColor: colors[key],
+      fillOpacity: 0.06,
+      zIndex: 2,
+    });
+    const approxMiles = (DRIVE_M[mins] / 1609).toFixed(1);
+    driveCircles[key + '_label'] = new google.maps.Marker({
+      position: google.maps.geometry
+        ? google.maps.geometry.spherical.computeOffset(
+            new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
+        : { lat: subjectLatLng.lat, lng: subjectLatLng.lng + (DRIVE_M[mins] / 89000) },
+      map,
+      icon: { url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', scaledSize: new google.maps.Size(1,1) },
+      label: { text: `~${mins} min`, color: colors[key], fontWeight: '700', fontSize: '12px' },
+      zIndex: 3,
+    });
+    document.getElementById(btnId).classList.add('btn-ring-active');
+    activeRings.add(key);
+  }
+}
+
+function refreshRings() {
+  // Reposition rings to new subject location
+  const allMile = Object.keys(mileCircles).filter(k => !k.includes('_label'));
+  allMile.forEach(k => {
+    if (mileCircles[k]) mileCircles[k].setCenter(subjectLatLng);
+    const miles = parseInt(k);
+    if (mileCircles[k + '_label'] && subjectLatLng) {
+      const pos = google.maps.geometry
+        ? google.maps.geometry.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
+        : { lat: subjectLatLng.lat + (MILES_M[miles] / 111320), lng: subjectLatLng.lng };
+      mileCircles[k + '_label'].setPosition(pos);
+    }
+  });
+  const allDrive = Object.keys(driveCircles).filter(k => !k.includes('_label'));
+  allDrive.forEach(k => {
+    if (driveCircles[k]) driveCircles[k].setCenter(subjectLatLng);
+    const mins = parseInt(k);
+    if (driveCircles[k + '_label'] && subjectLatLng) {
+      const pos = google.maps.geometry
+        ? google.maps.geometry.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
+        : { lat: subjectLatLng.lat, lng: subjectLatLng.lng + (DRIVE_M[mins] / 89000) };
+      driveCircles[k + '_label'].setPosition(pos);
+    }
+  });
+}
+
+// ════════════════════════════════════════════
+// DRAWING TOOLS
+// ════════════════════════════════════════════
+function setDrawMode(mode) {
+  if (!drawingManager) return;
+  if (currentDrawMode === mode) {
+    // toggle off
+    drawingManager.setDrawingMode(null);
+    setDrawBtnActive(null);
+    currentDrawMode = null;
+  } else {
+    const modeMap = {
+      polygon:   google.maps.drawing.OverlayType.POLYGON,
+      rectangle: google.maps.drawing.OverlayType.RECTANGLE,
+      polyline:  google.maps.drawing.OverlayType.POLYLINE,
+    };
+    drawingManager.setDrawingMode(modeMap[mode]);
+    setDrawBtnActive(mode);
+    currentDrawMode = mode;
+    setStatus(`Drawing mode: <span class="hi">${mode}</span>. Click on map to start drawing. Click again to finish.`);
+  }
+}
+
+function setDrawBtnActive(mode) {
+  ['polygon','rectangle','polyline'].forEach(m => {
+    document.getElementById('draw-' + m)?.classList.remove('btn-draw-active');
+  });
+  if (mode) document.getElementById('draw-' + mode)?.classList.add('btn-draw-active');
+}
+
+function clearDrawings() {
+  // Clear drawn shapes
+  drawnShapes.forEach(s => s.setMap(null));
+  drawnShapes = [];
+  // Clear all rings
+  Object.values(mileCircles).forEach(c => c?.setMap(null));
+  mileCircles = {};
+  Object.values(driveCircles).forEach(c => c?.setMap(null));
+  driveCircles = {};
+  activeRings.clear();
+  ['ring-1mi','ring-3mi','ring-5mi','ring-1min','ring-5min','ring-10min'].forEach(id => {
+    document.getElementById(id)?.classList.remove('btn-ring-active');
+  });
+  // Reset draw mode
+  if (drawingManager) drawingManager.setDrawingMode(null);
+  setDrawBtnActive(null);
+  currentDrawMode = null;
+  setStatus('All shapes and rings cleared.');
 }
 
 // ════════════════════════════════════════════
@@ -504,33 +691,31 @@ function getDomain(name) {
   return null;
 }
 
-// Returns ordered list of logo URLs to try (fallback chain)
 function getLogoUrls(name) {
-  const domain = getDomain(name) || name.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+  const domain = getDomain(name) || name.toLowerCase().replace(/[^a-z0-9]/g,'') + '.com';
   return [
+    // Tier 1: logo.dev (high quality)
     `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=128&format=png`,
+    // Tier 2: clearbit (widely used)
     `https://logo.clearbit.com/${domain}`,
+    // Tier 3: Google favicon V2 (reliable, good quality)
+    `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
+    // Tier 4: standard Google favicons (always works)
     `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
   ];
 }
 
-// Keep for backwards compat
-function getLogoUrl(name) { return getLogoUrls(name)[0]; }
-
 function getInitials(name) {
-  return name.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  return name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
 }
-
-function nextColor() {
-  return BRAND_COLORS[(colorIdx++) % BRAND_COLORS.length];
-}
+function nextColor() { return BRAND_COLORS[(colorIdx++) % BRAND_COLORS.length]; }
 
 // ════════════════════════════════════════════
 // ADD RETAILER
 // ════════════════════════════════════════════
 async function addRetailer(name, address, coordsOverride) {
   if (!name) {
-    name = document.getElementById('retailer-name-input').value.trim();
+    name    = document.getElementById('retailer-name-input').value.trim();
     address = document.getElementById('retailer-addr-input').value.trim();
   }
   if (!name) { alert('Enter a retailer name.'); return; }
@@ -539,10 +724,16 @@ async function addRetailer(name, address, coordsOverride) {
   let coords = coordsOverride;
   if (!coords) {
     if (address) {
-      showLoading(`Geocoding ${name}…`);
-      coords = await geocode(address);
-      hideLoading();
-      if (!coords) coords = nearbyCoords();
+      // Check if Places autocomplete already resolved it
+      const place = retailerAC?.getPlace();
+      if (place?.geometry) {
+        coords = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
+      } else {
+        showLoading(`Geocoding ${name}…`);
+        coords = await geocodeAddress(address);
+        hideLoading();
+        if (!coords) coords = nearbyCoords();
+      }
     } else {
       coords = nearbyCoords();
     }
@@ -551,10 +742,11 @@ async function addRetailer(name, address, coordsOverride) {
   const id = 'r' + Date.now() + Math.random().toString(36).slice(2,6);
   const color = nextColor();
   const logoUrls = getLogoUrls(name);
-
-  const r = { id, name, coords, color, logoUrl: logoUrls[0], logoUrls, loaded: false, size: globalSize, marker: null };
+  const r = { id, name, coords, color, logoUrl: logoUrls[0], logoUrls, loaded: false, size: globalSize, overlay: null };
   retailers.push(r);
-  await placeMarker(r);
+
+  await loadLogo(r);
+  placeOverlay(r);
   renderList();
 
   document.getElementById('retailer-name-input').value = '';
@@ -564,127 +756,112 @@ async function addRetailer(name, address, coordsOverride) {
 
 function nearbyCoords() {
   const n = retailers.length;
-  const a = (n * 137.508) * Math.PI / 180; // golden angle spiral
-  const d = 0.0008 + Math.floor(n / 10) * 0.0006;
-  return {
-    lat: subjectLatLng.lat + d * Math.sin(a),
-    lng: subjectLatLng.lng + d * Math.cos(a) * 1.25
-  };
+  const a = (n * 137.508) * Math.PI / 180;
+  const d = 0.0008 + Math.floor(n/10) * 0.0006;
+  return { lat: subjectLatLng.lat + d * Math.sin(a), lng: subjectLatLng.lng + d * Math.cos(a) * 1.25 };
 }
 
 // ════════════════════════════════════════════
-// PLACE MARKER
+// LOGO LOADING (robust 4-tier fallback)
 // ════════════════════════════════════════════
-async function placeMarker(r) {
-  if (r.marker) r.marker.remove();
+async function loadLogo(r) {
+  return new Promise(resolve => {
+    const urls = [...r.logoUrls];
+    let timeoutId = setTimeout(() => { r.loaded = false; resolve(); }, 6000);
 
-  // Try each logo URL in order until one loads
-  await new Promise(resolve => {
-    const urls = [...(r.logoUrls || [r.logoUrl])];
     function tryNext() {
-      if (!urls.length) { r.loaded = false; resolve(); return; }
+      if (!urls.length) { r.loaded = false; clearTimeout(timeoutId); resolve(); return; }
       const url = urls.shift();
       const img = new Image();
-      img.onload  = () => { r.logoUrl = url; r.loaded = true;  resolve(); };
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Make sure it's not a 1x1 placeholder
+        if (img.naturalWidth > 8 && img.naturalHeight > 8) {
+          r.logoUrl = url;
+          r.loaded = true;
+          clearTimeout(timeoutId);
+          resolve();
+        } else {
+          tryNext();
+        }
+      };
       img.onerror = () => tryNext();
       img.src = url;
     }
     tryNext();
-    setTimeout(() => { r.loaded = false; resolve(); }, 5000);
   });
-
-  const icon = buildIcon(r);
-  const marker = L.marker([r.coords.lat, r.coords.lng], { icon, draggable: true, autoPan: true }).addTo(map);
-
-  marker.on('dragend', e => {
-    const p = e.target.getLatLng();
-    r.coords = { lat: p.lat, lng: p.lng };
-  });
-  marker.on('click', () => selectRetailer(r.id));
-
-  r.marker = marker;
-}
-
-function buildIcon(r) {
-  const s = r.size || globalSize;
-  const selected = selectedId === r.id;
-  const border = selected ? '2.5px solid #3b82f6' : '2px solid rgba(255,255,255,0.9)';
-  const glow   = selected ? '0 0 0 3px rgba(59,130,246,0.5), 0 4px 16px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.45)';
-
-  const inner = r.loaded
-    ? `<img src="${r.logoUrl}" style="width:${s}px;height:${s}px;object-fit:contain;display:block;"/>`
-    : `<div style="width:${s}px;height:${s}px;background:${r.color};display:flex;align-items:center;justify-content:center;font-size:${Math.floor(s*0.32)}px;font-weight:800;color:white;">${getInitials(r.name)}</div>`;
-
-  const label = showLabels
-    ? `<div style="font-size:${Math.max(8,Math.floor(s*0.19))}px;font-weight:700;color:#111;padding:2px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${s+6}px;">${r.name}</div>`
-    : '';
-
-  const html = `<div style="background:white;border:${border};border-radius:7px;padding:3px;cursor:move;box-shadow:${glow};user-select:none;">
-    ${inner}${label}
-  </div>`;
-
-  return L.divIcon({
-    html,
-    iconSize: [s + 10, s + (showLabels ? 26 : 10)],
-    iconAnchor: [(s + 10) / 2, s + (showLabels ? 26 : 10)],
-    className: ''
-  });
-}
-
-function refreshMarker(r) {
-  if (r.marker) r.marker.setIcon(buildIcon(r));
 }
 
 // ════════════════════════════════════════════
-// AUTO-DISCOVER (OpenStreetMap Overpass API)
+// OVERLAY MANAGEMENT
+// ════════════════════════════════════════════
+function placeOverlay(r) {
+  if (r.overlay) { r.overlay.setMap(null); r.overlay = null; }
+  const overlay = new LogoOverlay(r.coords, r);
+  overlay.setMap(map);
+  r.overlay = overlay;
+}
+
+function refreshOverlay(r) {
+  if (r.overlay) r.overlay.refresh();
+}
+
+// ════════════════════════════════════════════
+// GEOCODING
+// ════════════════════════════════════════════
+function geocodeAddress(address) {
+  return new Promise(resolve => {
+    geocoder.geocode({ address, region: 'us' }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const loc = results[0].geometry.location;
+        resolve({ lat: loc.lat(), lng: loc.lng() });
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
+
+// ════════════════════════════════════════════
+// DISCOVER NEARBY (Google Places)
 // ════════════════════════════════════════════
 async function discoverNearby() {
   if (!subjectLatLng) { alert('Set a subject property first.'); return; }
   showLoading('Discovering nearby businesses…');
 
-  const { lat, lng } = subjectLatLng;
-  const radius = 500; // meters
+  const seen = new Set(retailers.map(r => r.name.toLowerCase()));
+  const found = [];
 
-  const query = `[out:json][timeout:20];
-(
-  node["brand"](around:${radius},${lat},${lng});
-  node["name"]["shop"~"supermarket|convenience|department_store|clothing|shoes|electronics|drugstore|hardware"](around:${radius},${lat},${lng});
-  node["name"]["amenity"~"restaurant|cafe|fast_food|bank|pharmacy"](around:${radius},${lat},${lng});
-);
-out body;`;
+  const types = ['store','restaurant','food','bank','pharmacy','gas_station','gym','supermarket'];
+  let pending = types.length;
 
-  try {
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(query)
+  for (const type of types) {
+    placesService.nearbySearch({
+      location: subjectLatLng,
+      radius: 800,
+      type,
+    }, (results, status) => {
+      if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+        for (const p of results) {
+          const name = p.name;
+          if (!name || seen.has(name.toLowerCase())) continue;
+          seen.add(name.toLowerCase());
+          found.push({ name, coords: { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } });
+        }
+      }
+      pending--;
+      if (pending === 0) finishDiscover(found);
     });
-    const data = await res.json();
-    hideLoading();
-
-    const seen = new Set(retailers.map(r => r.name.toLowerCase()));
-    const added = [];
-
-    for (const el of data.elements) {
-      const name = el.tags?.brand || el.tags?.name;
-      if (!name || seen.has(name.toLowerCase())) continue;
-      seen.add(name.toLowerCase());
-      added.push({ name, coords: { lat: el.lat, lng: el.lon } });
-    }
-
-    if (added.length === 0) {
-      setStatus('No new businesses found nearby via OpenStreetMap. Try adding manually.');
-      return;
-    }
-
-    for (const { name, coords } of added.slice(0, 30)) {
-      await addRetailer(name, null, coords);
-    }
-
-    setStatus(`Discovered <span class="hi">${added.length}</span> nearby businesses. Drag logos to reposition.`);
-  } catch (e) {
-    hideLoading();
-    setStatus('Discover failed. Check your connection and try again.');
   }
+}
+
+async function finishDiscover(found) {
+  hideLoading();
+  if (!found.length) { setStatus('No new businesses found nearby. Try adding manually.'); return; }
+  for (const { name, coords } of found.slice(0, 30)) {
+    await addRetailer(name, null, coords);
+  }
+  setStatus(`Discovered <span class="hi">${found.length}</span> nearby businesses. Drag logos to reposition.`);
 }
 
 // ════════════════════════════════════════════
@@ -693,42 +870,37 @@ out body;`;
 function renderList() {
   const list = document.getElementById('retailer-list');
   document.getElementById('retailer-count').textContent = retailers.length;
-
-  if (retailers.length === 0) {
+  if (!retailers.length) {
     list.innerHTML = `<div style="color:#4b5563;font-size:12px;text-align:center;padding:20px 14px;">No retailers added yet.</div>`;
     return;
   }
-
   list.innerHTML = '';
   retailers.forEach(r => {
     const div = document.createElement('div');
     div.className = `r-item${selectedId === r.id ? ' selected' : ''}`;
     div.onclick = () => selectRetailer(r.id);
-
     const logo = r.loaded
-      ? `<img src="${r.logoUrl}" class="r-logo" onerror="this.style.display='none'"/>`
+      ? `<img src="${r.logoUrl}" class="r-logo" crossorigin="anonymous" onerror="this.style.display='none'"/>`
       : `<div class="r-logo-fb" style="background:${r.color};">${getInitials(r.name)}</div>`;
-
-    div.innerHTML = `${logo}<span class="r-name" title="${r.name}">${r.name}</span>
-      <button class="r-del" title="Remove" onclick="event.stopPropagation();removeRetailer('${r.id}')">✕</button>`;
+    div.innerHTML = `${logo}<span class="r-name" title="${r.name}">${r.name}</span><button class="r-del" onclick="event.stopPropagation();removeRetailer('${r.id}')">✕</button>`;
     list.appendChild(div);
   });
 }
 
 function selectRetailer(id) {
   selectedId = selectedId === id ? null : id;
-  retailers.forEach(r => refreshMarker(r));
+  retailers.forEach(r => refreshOverlay(r));
   renderList();
   const r = retailers.find(x => x.id === id);
   if (r && selectedId) {
-    map.panTo([r.coords.lat, r.coords.lng]);
+    map.panTo(r.coords);
     setStatus(`Selected: <span class="hi">${r.name}</span>. Drag on map to reposition.`);
   }
 }
 
 function removeRetailer(id) {
   const r = retailers.find(x => x.id === id);
-  if (r && r.marker) r.marker.remove();
+  if (r?.overlay) r.overlay.setMap(null);
   retailers = retailers.filter(x => x.id !== id);
   if (selectedId === id) selectedId = null;
   renderList();
@@ -741,28 +913,24 @@ function removeRetailer(id) {
 function bulkResize(val) {
   globalSize = +val;
   document.getElementById('size-val').textContent = val + 'px';
-  retailers.forEach(r => { r.size = globalSize; refreshMarker(r); });
+  retailers.forEach(r => { r.size = globalSize; refreshOverlay(r); });
 }
 
 // ════════════════════════════════════════════
 // SPREAD LOGOS
 // ════════════════════════════════════════════
 function spreadLogos() {
-  if (!subjectLatLng || retailers.length === 0) return;
-  const n = retailers.length;
-  const baseR = 0.0012;
+  if (!subjectLatLng || !retailers.length) return;
+  const n = retailers.length, baseR = 0.0012;
   retailers.forEach((r, i) => {
-    const rings = Math.ceil(n / 12);
-    const ring = Math.floor(i / 12);
-    const posInRing = i % 12;
-    const countInRing = Math.min(12, n - ring * 12);
-    const angle = (posInRing / countInRing) * 2 * Math.PI;
-    const radius = baseR * (ring + 1);
-    r.coords = {
-      lat: subjectLatLng.lat + radius * Math.sin(angle),
-      lng: subjectLatLng.lng + radius * Math.cos(angle) * 1.4
-    };
-    if (r.marker) r.marker.setLatLng([r.coords.lat, r.coords.lng]);
+    const ring = Math.floor(i/12), pos = i%12, countInRing = Math.min(12, n - ring*12);
+    const angle = (pos/countInRing) * 2 * Math.PI;
+    const radius = baseR * (ring+1);
+    r.coords = { lat: subjectLatLng.lat + radius*Math.sin(angle), lng: subjectLatLng.lng + radius*Math.cos(angle)*1.4 };
+    if (r.overlay) {
+      r.overlay.latlng = new google.maps.LatLng(r.coords.lat, r.coords.lng);
+      r.overlay.draw();
+    }
   });
   setStatus('Logos spread out around the subject property.');
 }
@@ -773,7 +941,7 @@ function spreadLogos() {
 function toggleLabels() {
   showLabels = !showLabels;
   document.getElementById('lbl-state').textContent = showLabels ? 'ON' : 'OFF';
-  retailers.forEach(r => refreshMarker(r));
+  retailers.forEach(r => refreshOverlay(r));
 }
 
 // ════════════════════════════════════════════
@@ -786,14 +954,14 @@ async function exportMap() {
       useCORS: true, allowTaint: true, scale: 2, logging: false, backgroundColor: '#000'
     });
     const link = document.createElement('a');
-    link.download = `retailer-map-${new Date().toISOString().slice(0,10)}.png`;
+    link.download = `atlas-map-${new Date().toISOString().slice(0,10)}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
     hideLoading();
     setStatus('Map exported to PNG.');
   } catch(e) {
     hideLoading();
-    setStatus('Export failed (tile CORS). Use Cmd+Shift+4 to screenshot instead.');
+    setStatus('Export failed. Use Cmd+Shift+4 to screenshot instead.');
   }
 }
 
@@ -802,29 +970,18 @@ async function exportMap() {
 // ════════════════════════════════════════════
 function clearAll() {
   if (!confirm('Remove all retailers from map?')) return;
-  retailers.forEach(r => r.marker?.remove());
+  retailers.forEach(r => r.overlay?.setMap(null));
   retailers = []; selectedId = null; colorIdx = 0;
   renderList();
   setStatus('All retailers cleared.');
 }
 
 // ════════════════════════════════════════════
-// LOADING OVERLAY
+// LOADING / STATUS
 // ════════════════════════════════════════════
-function showLoading(msg) {
-  document.getElementById('loading-msg').textContent = msg;
-  document.getElementById('loading').style.display = 'flex';
-}
-function hideLoading() {
-  document.getElementById('loading').style.display = 'none';
-}
-
-// ════════════════════════════════════════════
-// STATUS
-// ════════════════════════════════════════════
-function setStatus(html) {
-  document.getElementById('status').innerHTML = html;
-}
+function showLoading(msg) { document.getElementById('loading-msg').textContent = msg; document.getElementById('loading').style.display = 'flex'; }
+function hideLoading()     { document.getElementById('loading').style.display = 'none'; }
+function setStatus(html)   { document.getElementById('status').innerHTML = html; }
 
 // ════════════════════════════════════════════
 // KEYBOARD SHORTCUTS
@@ -833,19 +990,18 @@ document.addEventListener('keydown', e => {
   if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && document.activeElement.tagName !== 'INPUT')
     removeRetailer(selectedId);
   if (e.key === 'Escape') {
-    selectedId = null;
-    retailers.forEach(r => refreshMarker(r));
-    renderList();
+    selectedId = null; retailers.forEach(r => refreshOverlay(r)); renderList();
+    if (drawingManager) { drawingManager.setDrawingMode(null); setDrawBtnActive(null); currentDrawMode = null; }
   }
 });
-
-document.getElementById('subject-input').addEventListener('keydown', e => { if (e.key === 'Enter') geocodeSubject(); });
+document.getElementById('subject-input').addEventListener('keydown', e => { if (e.key === 'Enter') geocodeSubjectManual(); });
 document.getElementById('retailer-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') addRetailer(); });
-
-// ════════════════════════════════════════════
-// BOOT
-// ════════════════════════════════════════════
-initMap();
 </script>
+
+<!-- Load Google Maps with Places + Drawing libraries -->
+<script async
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLnBGWiIGI8OtYlHgLImzn0JY5FVjuQ6k&libraries=places,drawing,geometry&callback=initMap">
+</script>
+
 </body>
 </html>
