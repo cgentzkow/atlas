@@ -1553,9 +1553,10 @@ function buildRbHTML(mapImg, W, H) {
   html+='<img src="'+GENTZ_LOGO_B64+'" style="height:34px;display:block;" />';
   html+='<div style="text-align:right;flex:1;padding-left:20px;"><div style="font-size:13px;font-weight:700;color:'+INK+';letter-spacing:-0.3px;line-height:1.2;">'+escHtml(rbState.title)+'</div>';
   html+='<div style="font-size:8px;color:'+GR+';margin-top:3px;letter-spacing:0.3px;">'+escHtml(rbState.subtitle)+'</div></div></div>';
-  // Map via background-image (no distortion)
-  var mapBg=mapImg?'background-image:url('+mapImg+');background-size:cover;background-position:center;':'';
-  html+='<div style="position:absolute;top:'+HDR+'px;left:0;width:'+MAP_W+'px;height:'+MAP_H+'px;overflow:hidden;background:#1a2530;'+mapBg+'"></div>';
+  // Map as img tag (best html2canvas quality)
+  html+='<div style="position:absolute;top:'+HDR+'px;left:0;width:'+MAP_W+'px;height:'+MAP_H+'px;overflow:hidden;background:#1a2530;">';
+  if(mapImg){html+='<img src="'+mapImg+'" style="width:100%;height:100%;display:block;"/>';}
+  html+='</div>';
   // Overlay legend
   if(tp==='overlay'){
     html+='<div style="position:absolute;bottom:'+(FTR+12)+'px;right:12px;width:230px;background:rgba(17,24,39,0.92);border-radius:6px;overflow:hidden;">';
@@ -1628,11 +1629,11 @@ async function downloadRbPDF() {
     outer.style.width=W+'px'; outer.style.height=H+'px';
     await new Promise(r=>setTimeout(r,120));
     const reportDiv=preview.querySelector('div');
-    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2,width:W,height:H,logging:false,backgroundColor:'white'});
+    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:10000});
     preview.style.transform=savedT; outer.style.width=savedW; outer.style.height=savedH;
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:isLand?'landscape':'portrait',unit:'pt',format:'letter'});
-    doc.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,W,H,'','FAST');
+    doc.addImage(canvas.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,H,'','FAST');
     const fname=rbState.title.replace(/[^a-zA-Z0-9 ]/g,'').replace(/ +/g,'-').slice(0,40)+'-'+new Date().toISOString().slice(0,10)+'.pdf';
     doc.save(fname); hideRbLoading();
   } catch(err){hideRbLoading();alert('PDF error: '+err.message);console.error(err);}
@@ -1648,7 +1649,7 @@ async function downloadRbPNG() {
     outer.style.width=W+'px'; outer.style.height=H+'px';
     await new Promise(r=>setTimeout(r,120));
     const reportDiv=preview.querySelector('div');
-    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2,width:W,height:H,logging:false,backgroundColor:'white'});
+    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:10000});
     preview.style.transform=savedT; outer.style.width=savedW; outer.style.height=savedH;
     const link=document.createElement('a');
     link.download=rbState.title.replace(/[^a-zA-Z0-9 ]/g,'').replace(/ +/g,'-').slice(0,40)+'.png';
