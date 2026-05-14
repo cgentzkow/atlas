@@ -42,7 +42,6 @@
     #retailer-name-input { width: 160px; }
     #retailer-addr-input { width: 220px; }
 
-    /* Google autocomplete dropdown dark styling */
     .pac-container {
       background: #1f2937 !important; border: 1px solid #374151 !important;
       border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
@@ -62,6 +61,8 @@
     .btn-amber { background: #f59e0b; color: white; } .btn-amber:hover { background: #d97706; }
     .btn-gray  { background: #374151; color: #d1d5db; border: 1px solid #4b5563; }
     .btn-gray:hover { background: #4b5563; }
+    .btn-pigeon { background: linear-gradient(135deg,#7c3aed,#4f46e5); color: white; }
+    .btn-pigeon:hover { background: linear-gradient(135deg,#6d28d9,#4338ca); }
     .btn-active { background: #1d4ed8 !important; color: white !important; box-shadow: inset 0 0 0 2px #93c5fd; }
     .btn-ring-active { background: #1e3a5f !important; color: #93c5fd !important; border-color: #3b82f6 !important; }
     .btn-draw-active { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #7c3aed !important; }
@@ -75,21 +76,25 @@
 
     /* ── Side Panel ── */
     #panel {
-      position: absolute; top: 12px; right: 12px; width: 260px;
+      position: absolute; top: 12px; right: 12px; width: 270px;
       background: rgba(17,24,39,0.93); backdrop-filter: blur(8px);
       border: 1px solid #374151; border-radius: 10px; z-index: 1000;
       display: flex; flex-direction: column; max-height: calc(100vh - 130px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5); transition: border-color 0.3s;
     }
+    #panel.pigeon-active { border-color: #7c3aed; box-shadow: 0 8px 32px rgba(124,58,237,0.3); }
     #panel-header {
       padding: 12px 14px; border-bottom: 1px solid #374151;
-      display: flex; align-items: center; justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
     }
-    #panel-header span { font-size: 13px; font-weight: 600; color: #f9fafb; }
-    #retailer-count { font-size: 11px; color: #6b7280; background: #374151; padding: 2px 7px; border-radius: 10px; }
+    #panel-header-left { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+    #panel-header-title { font-size: 13px; font-weight: 600; color: #f9fafb; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #retailer-count { font-size: 11px; color: #6b7280; background: #374151; padding: 2px 7px; border-radius: 10px; flex-shrink:0; }
     #retailer-list { flex: 1; overflow-y: auto; padding: 6px; }
     #retailer-list::-webkit-scrollbar { width: 4px; }
     #retailer-list::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
+
+    /* Normal list items */
     .r-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
     .r-item:hover { background: #1f2937; }
     .r-item.selected { background: #1e3a5f; }
@@ -98,6 +103,31 @@
     .r-name { font-size: 12px; color: #e5e7eb; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .r-del { width: 20px; height: 20px; background: transparent; border: none; color: #4b5563; cursor: pointer; border-radius: 4px; font-size: 13px; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
     .r-del:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+    /* Pigeon panel items */
+    .pig-subject {
+      padding: 10px 10px; border-radius: 6px; background: #1e3a5f;
+      border: 1px solid #3b82f6; margin-bottom: 8px;
+    }
+    .pig-subject .pig-eyebrow { font-size:10px; color:#93c5fd; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+    .pig-subject .pig-addr { font-size:12px; color:#f9fafb; font-weight:600; line-height:1.4; }
+
+    .pig-item {
+      display:flex; gap:9px; align-items:flex-start;
+      padding: 8px 8px; border-radius:6px; cursor:pointer; transition:background 0.15s;
+      border-top: 1px solid #1f2937;
+    }
+    .pig-item:hover { background: #1f2937; }
+    .pig-item.selected { background: #1e3a5f; }
+    .pig-num {
+      width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:11px; font-weight:700; color:white; flex-shrink:0; margin-top:1px;
+    }
+    .pig-body { flex:1; min-width:0; }
+    .pig-addr-line { font-size:12px; color:#e5e7eb; font-weight:500; margin-bottom:3px; line-height:1.35; }
+    .pig-dist { font-size:11px; color:#9ca3af; display:flex; gap:10px; flex-wrap:wrap; }
+    .pig-dist span { display:flex; align-items:center; gap:3px; }
+
     #panel-footer { padding: 10px 14px; border-top: 1px solid #374151; }
     .footer-label { font-size: 11px; color: #6b7280; margin-bottom: 5px; display: flex; justify-content: space-between; }
     input[type="range"] { width: 100%; accent-color: #3b82f6; height: 4px; cursor: pointer; }
@@ -107,29 +137,66 @@
     /* ── Status bar ── */
     #status-bar { background: #111827; border-top: 1px solid #1f2937; padding: 5px 18px; font-size: 11px; color: #6b7280; flex-shrink: 0; }
     #status-bar span.hi { color: #60a5fa; }
+    #status-bar span.pig-hi { color: #a78bfa; }
 
     /* ── Loading overlay ── */
     #loading { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; font-size: 14px; color: white; flex-direction: column; gap: 12px; }
     .spinner { width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Google Maps UI overrides */
+    /* ── Pigeon Modal ── */
+    #pigeon-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75); z-index: 4000;
+      align-items: center; justify-content: center;
+    }
+    #pigeon-modal.open { display: flex; }
+    .pig-modal-box {
+      background: #1f2937; border-radius: 14px; padding: 28px 28px 24px;
+      width: 440px; border: 1px solid #374151;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,58,237,0.3);
+    }
+    .pig-modal-head {
+      display:flex; align-items:center; gap:10px; margin-bottom:6px;
+    }
+    .pig-modal-head h2 {
+      font-size:20px; font-weight:700; color:#f9fafb; letter-spacing:-0.3px;
+    }
+    .pig-modal-sub {
+      font-size:13px; color:#9ca3af; margin-bottom:22px; line-height:1.5;
+    }
+    .pig-field { margin-bottom:14px; }
+    .pig-field label { display:block; font-size:11px; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
+    .pig-field input[type="text"] { width:100%; }
+    .pig-field-row { display:flex; gap:14px; align-items:flex-start; }
+    .pig-range-wrap { flex:1; }
+    .pig-range-val { font-size:14px; font-weight:700; color:#a78bfa; min-width:16px; text-align:center; padding-top:2px; }
+    input[type="range"]#pigeon-count { accent-color: #7c3aed; }
+    .pig-modal-footer { display:flex; gap:8px; margin-top:20px; }
+    .pig-modal-footer button { flex:1; padding:9px; }
+    .btn-run-pigeon { background:linear-gradient(135deg,#7c3aed,#4f46e5); color:white; font-size:13px; font-weight:600; }
+    .btn-run-pigeon:hover { background:linear-gradient(135deg,#6d28d9,#4338ca); }
+
+    /* Pigeon loading spinner color */
+    #pigeon-modal .spinner { border-top-color: #7c3aed; }
+
     .gm-style-cc, .gmnoprint a, .gm-style a { display: none !important; }
     .gm-bundled-control { bottom: 60px !important; }
   </style>
 </head>
 <body>
 
-<!-- Header -->
+<!-- ══ Header ══ -->
 <div id="header">
   <div><h1>🗺 Atlas</h1></div>
-  <span class="subtitle">Retailer Map Maker · Duhs Commercial</span>
+  <span class="subtitle">Retailer Map Maker · GENTZ Commercial</span>
   <div style="flex:1"></div>
+  <button class="btn-pigeon" onclick="openPigeonModal()" title="Find closest locations of a specific tenant">🐦 Pigeon</button>
   <button class="btn-amber" onclick="spreadLogos()" title="Arrange logos in a circle">📐 Spread</button>
   <button class="btn-green" onclick="exportMap()" title="Download as PNG">💾 Export PNG</button>
 </div>
 
-<!-- Row 1: Subject + Retailer inputs -->
+<!-- ══ Row 1: Subject + Retailer inputs ══ -->
 <div class="ctrl-row">
   <div class="ctrl-group">
     <span class="ctrl-label">Subject Property</span>
@@ -150,39 +217,32 @@
   <button class="btn-amber" onclick="discoverNearby()" title="Auto-discover nearby businesses">🔍 Discover Nearby</button>
 </div>
 
-<!-- Row 2: Map tools -->
+<!-- ══ Row 2: Map tools ══ -->
 <div class="ctrl-row">
-  <!-- Map Type -->
   <span class="row-label">Map:</span>
-  <button id="mt-streets"  class="btn-gray" onclick="setMapType('roadmap')"  title="Street map">🗺 Streets</button>
+  <button id="mt-streets"   class="btn-gray" onclick="setMapType('roadmap')"   title="Street map">🗺 Streets</button>
   <button id="mt-satellite" class="btn-gray" onclick="setMapType('satellite')" title="Satellite">🛰 Satellite</button>
-  <button id="mt-hybrid"   class="btn-gray btn-active" onclick="setMapType('hybrid')"   title="Satellite + labels">🛰🗺 Hybrid</button>
-  <button id="mt-terrain"  class="btn-gray" onclick="setMapType('terrain')"  title="Terrain / topo">🏔 Terrain</button>
+  <button id="mt-hybrid"    class="btn-gray btn-active" onclick="setMapType('hybrid')" title="Satellite + labels">🛰🗺 Hybrid</button>
+  <button id="mt-terrain"   class="btn-gray" onclick="setMapType('terrain')"  title="Terrain / topo">🏔 Terrain</button>
   <div class="sep"></div>
-
-  <!-- Mile Rings -->
   <span class="row-label">Mile Rings:</span>
-  <button id="ring-1mi" class="btn-gray" onclick="toggleMileRing(1)"  title="1-mile ring">1 mi</button>
-  <button id="ring-3mi" class="btn-gray" onclick="toggleMileRing(3)"  title="3-mile ring">3 mi</button>
-  <button id="ring-5mi" class="btn-gray" onclick="toggleMileRing(5)"  title="5-mile ring">5 mi</button>
+  <button id="ring-1mi" class="btn-gray" onclick="toggleMileRing(1)">1 mi</button>
+  <button id="ring-3mi" class="btn-gray" onclick="toggleMileRing(3)">3 mi</button>
+  <button id="ring-5mi" class="btn-gray" onclick="toggleMileRing(5)">5 mi</button>
   <div class="sep"></div>
-
-  <!-- Drive Time -->
   <span class="row-label">Drive Time ~:</span>
-  <button id="ring-1min"  class="btn-gray" onclick="toggleDriveRing(1)"  title="~1 min drive time">1 min</button>
-  <button id="ring-5min"  class="btn-gray" onclick="toggleDriveRing(5)"  title="~5 min drive time">5 min</button>
-  <button id="ring-10min" class="btn-gray" onclick="toggleDriveRing(10)" title="~10 min drive time">10 min</button>
+  <button id="ring-1min"  class="btn-gray" onclick="toggleDriveRing(1)">1 min</button>
+  <button id="ring-5min"  class="btn-gray" onclick="toggleDriveRing(5)">5 min</button>
+  <button id="ring-10min" class="btn-gray" onclick="toggleDriveRing(10)">10 min</button>
   <div class="sep"></div>
-
-  <!-- Draw Tools -->
   <span class="row-label">Draw:</span>
-  <button id="draw-polygon"   class="btn-gray" onclick="setDrawMode('polygon')"   title="Draw polygon (outline property)">⬡ Polygon</button>
-  <button id="draw-rectangle" class="btn-gray" onclick="setDrawMode('rectangle')" title="Draw rectangle">▭ Rectangle</button>
-  <button id="draw-polyline"  class="btn-gray" onclick="setDrawMode('polyline')"  title="Draw line">╱ Line</button>
-  <button class="btn-gray btn-red" style="background:#374151;color:#f87171;border-color:#4b5563;" onclick="clearDrawings()" title="Clear all rings and drawings">🗑 Clear Shapes</button>
+  <button id="draw-polygon"   class="btn-gray" onclick="setDrawMode('polygon')">⬡ Polygon</button>
+  <button id="draw-rectangle" class="btn-gray" onclick="setDrawMode('rectangle')">▭ Rectangle</button>
+  <button id="draw-polyline"  class="btn-gray" onclick="setDrawMode('polyline')">╱ Line</button>
+  <button class="btn-gray btn-red" style="background:#374151;color:#f87171;border-color:#4b5563;" onclick="clearDrawings()">🗑 Clear Shapes</button>
 </div>
 
-<!-- Map -->
+<!-- ══ Map ══ -->
 <div id="map-wrap">
   <div id="loading"><div class="spinner"></div><span id="loading-msg">Loading...</span></div>
   <div id="map"></div>
@@ -190,7 +250,10 @@
   <!-- Side panel -->
   <div id="panel">
     <div id="panel-header">
-      <span>Retailers on Map</span>
+      <div id="panel-header-left">
+        <span id="panel-header-icon"></span>
+        <span id="panel-header-title">Retailers on Map</span>
+      </div>
       <span id="retailer-count">0</span>
     </div>
     <div id="retailer-list">
@@ -211,9 +274,51 @@
   </div>
 </div>
 
-<!-- Status -->
+<!-- ══ Status ══ -->
 <div id="status-bar">
-  <span id="status">Enter a subject property address and click <span class="hi">Set Property</span> to begin.</span>
+  <span id="status">Enter a subject property address and click <span class="hi">Set Property</span> to begin. Use <span class="pig-hi">🐦 Pigeon</span> to find closest locations of any tenant.</span>
+</div>
+
+<!-- ══ Pigeon Modal ══ -->
+<div id="pigeon-modal">
+  <div class="pig-modal-box">
+    <div class="pig-modal-head">
+      <span style="font-size:28px;">🐦</span>
+      <h2>Pigeon</h2>
+    </div>
+    <p class="pig-modal-sub">Find the closest locations of any tenant to your subject site. Get driving distance + crow-flies distance for each.</p>
+
+    <div class="pig-field">
+      <label>Subject Site</label>
+      <input type="text" id="pigeon-subject" placeholder="1121 Santa Anita Ave, South El Monte, CA"/>
+    </div>
+
+    <div class="pig-field">
+      <label>Tenant / Brand Name</label>
+      <input type="text" id="pigeon-tenant" placeholder="El Pollo Loco"/>
+    </div>
+
+    <div class="pig-field">
+      <label>Number of locations to show</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+        <input type="range" id="pigeon-count" min="2" max="6" value="5" style="flex:1;" oninput="document.getElementById('pigeon-count-val').textContent=this.value"/>
+        <span id="pigeon-count-val" class="pig-range-val">5</span>
+      </div>
+    </div>
+
+    <div class="pig-field">
+      <label>Search radius</label>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+        <input type="range" id="pigeon-radius" min="5" max="50" value="25" step="5" style="flex:1;" oninput="document.getElementById('pigeon-radius-val').textContent=this.value+' mi'"/>
+        <span id="pigeon-radius-val" class="pig-range-val" style="min-width:36px;font-size:12px;">25 mi</span>
+      </div>
+    </div>
+
+    <div class="pig-modal-footer">
+      <button class="btn-gray" onclick="closePigeonModal()">Cancel</button>
+      <button class="btn-run-pigeon" onclick="runPigeon()">🐦 Find Locations</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -221,11 +326,11 @@
 // CONFIG
 // ════════════════════════════════════════════
 const GKEY = 'AIzaSyCLnBGWiIGI8OtYlHgLImzn0JY5FVjuQ6k';
-
-// Miles to meters
 const MILES_M = { 1: 1609, 3: 4828, 5: 8047 };
-// Approx drive-time radii (urban ~25mph avg) in meters
-const DRIVE_M = { 1: 670, 5: 3350, 10: 6700 };
+const DRIVE_M  = { 1: 670, 5: 3350, 10: 6700 };
+
+// Pigeon badge colors for numbered locations
+const PIGEON_COLORS = ['#7c3aed','#4f46e5','#0ea5e9','#10b981','#f59e0b','#ef4444'];
 
 // ════════════════════════════════════════════
 // RETAILER DOMAIN LOOKUP
@@ -278,6 +383,7 @@ const DOMAINS = {
   'rei':'rei.com','academy sports':'academy.com','office depot':'officedepot.com',
   'staples':'staples.com','fedex':'fedex.com','ups store':'theupsstore.com',
   'post office':'usps.com','usps':'usps.com',
+  'el pollo loco':'elpolloloco.com',
 };
 
 const BRAND_COLORS = [
@@ -300,12 +406,15 @@ let subjectAC = null, retailerAC = null;
 let placesService = null, geocoder = null;
 let LogoOverlay;
 
+// Pigeon state
+let pigeonMode = false;
+let pigeonData = null;
+
 // ════════════════════════════════════════════
-// MAP INIT (called by Google Maps API)
+// MAP INIT
 // ════════════════════════════════════════════
 function initMap() {
 
-  // ── Define custom overlay class ──
   LogoOverlay = class extends google.maps.OverlayView {
     constructor(latlng, retailer) {
       super();
@@ -320,7 +429,6 @@ function initMap() {
       this.el = el;
       this._buildContent();
 
-      // Drag
       let dragging = false, startXY = null, startLL = null;
       el.addEventListener('mousedown', (e) => {
         if (e.button !== 0) return;
@@ -362,14 +470,22 @@ function initMap() {
       const r = this.r, s = r.size || globalSize;
       const sel = selectedId === r.id;
       const border = sel ? '2.5px solid #3b82f6' : '2px solid rgba(255,255,255,0.9)';
-      const glow = sel ? '0 0 0 3px rgba(59,130,246,0.5),0 4px 16px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.45)';
+      const glow   = sel ? '0 0 0 3px rgba(59,130,246,0.5),0 4px 16px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.45)';
+
       const inner = r.loaded
         ? `<img src="${r.logoUrl}" style="width:${s}px;height:${s}px;object-fit:contain;display:block;border-radius:4px;" crossorigin="anonymous"/>`
         : `<div style="width:${s}px;height:${s}px;background:${r.color};display:flex;align-items:center;justify-content:center;font-size:${Math.floor(s*.32)}px;font-weight:800;color:white;border-radius:4px;">${getInitials(r.name)}</div>`;
+
       const label = showLabels
         ? `<div style="font-size:${Math.max(8,Math.floor(s*.19))}px;font-weight:700;color:#111;padding:2px 4px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:${s+6}px;">${r.name}</div>`
         : '';
-      this.el.innerHTML = `<div style="background:white;border:${border};border-radius:7px;padding:3px;cursor:move;box-shadow:${glow};user-select:none;">${inner}${label}</div>`;
+
+      // Pigeon numbered badge
+      const badge = r.pigeonIndex != null
+        ? `<div style="position:absolute;top:-9px;left:-9px;min-width:20px;height:20px;border-radius:10px;background:${PIGEON_COLORS[(r.pigeonIndex-1)%PIGEON_COLORS.length]};color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);padding:0 3px;z-index:10;">${r.pigeonIndex}</div>`
+        : '';
+
+      this.el.innerHTML = `<div style="position:relative;display:inline-block;">${badge}<div style="background:white;border:${border};border-radius:7px;padding:3px;cursor:move;box-shadow:${glow};user-select:none;">${inner}${label}</div></div>`;
     }
 
     draw() {
@@ -391,10 +507,9 @@ function initMap() {
     getPosition() { return this.latlng; }
   };
 
-  // ── Create map ──
   map = new google.maps.Map(document.getElementById('map'), {
-    center: { lat: 32.7157, lng: -117.1611 },
-    zoom: 15,
+    center: { lat: 34.05, lng: -118.20 },
+    zoom: 13,
     mapTypeId: 'hybrid',
     mapTypeControl: false,
     streetViewControl: false,
@@ -404,10 +519,9 @@ function initMap() {
     gestureHandling: 'greedy',
   });
 
-  geocoder     = new google.maps.Geocoder();
+  geocoder      = new google.maps.Geocoder();
   placesService = new google.maps.places.PlacesService(map);
 
-  // ── Autocomplete: subject property ──
   subjectAC = new google.maps.places.Autocomplete(
     document.getElementById('subject-input'),
     { componentRestrictions: { country: 'us' }, fields: ['geometry','formatted_address','name'] }
@@ -420,27 +534,22 @@ function initMap() {
     }
   });
 
-  // ── Autocomplete: retailer address ──
   retailerAC = new google.maps.places.Autocomplete(
     document.getElementById('retailer-addr-input'),
     { componentRestrictions: { country: 'us' }, fields: ['geometry','formatted_address'] }
   );
 
-  // ── Drawing manager ──
+  // Pigeon modal subject autocomplete
+  new google.maps.places.Autocomplete(
+    document.getElementById('pigeon-subject'),
+    { componentRestrictions: { country: 'us' }, fields: ['geometry','formatted_address','name'] }
+  );
+
   drawingManager = new google.maps.drawing.DrawingManager({
-    drawingMode: null,
-    drawingControl: false,
-    polygonOptions: {
-      fillColor: '#3b82f6', fillOpacity: 0.15,
-      strokeColor: '#3b82f6', strokeWeight: 2.5, editable: true, zIndex: 1
-    },
-    rectangleOptions: {
-      fillColor: '#10b981', fillOpacity: 0.15,
-      strokeColor: '#10b981', strokeWeight: 2.5, editable: true, zIndex: 1
-    },
-    polylineOptions: {
-      strokeColor: '#ef4444', strokeWeight: 3, editable: true, zIndex: 1
-    },
+    drawingMode: null, drawingControl: false,
+    polygonOptions:   { fillColor:'#3b82f6', fillOpacity:0.15, strokeColor:'#3b82f6', strokeWeight:2.5, editable:true, zIndex:1 },
+    rectangleOptions: { fillColor:'#10b981', fillOpacity:0.15, strokeColor:'#10b981', strokeWeight:2.5, editable:true, zIndex:1 },
+    polylineOptions:  { strokeColor:'#ef4444', strokeWeight:3, editable:true, zIndex:1 },
   });
   drawingManager.setMap(map);
   google.maps.event.addListener(drawingManager, 'overlaycomplete', (e) => {
@@ -450,7 +559,7 @@ function initMap() {
     currentDrawMode = null;
   });
 
-  setStatus('Ready. Enter a subject property address and click <span class="hi">Set Property</span>.');
+  setStatus('Ready. Enter a subject property and click <span class="hi">Set Property</span>, or hit <span class="pig-hi">🐦 Pigeon</span> to find closest tenant locations.');
 }
 
 // ════════════════════════════════════════════
@@ -473,14 +582,10 @@ async function geocodeSubjectManual() {
 
 function setSubjectLocation(coords, displayName) {
   subjectLatLng = coords;
-
   if (subjectMarker) subjectMarker.setMap(null);
 
   subjectMarker = new google.maps.Marker({
-    position: coords,
-    map,
-    title: 'Subject Property',
-    zIndex: 999,
+    position: coords, map, title: 'Subject Property', zIndex: 999,
     icon: {
       url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="38" height="48" viewBox="0 0 38 48">
@@ -499,12 +604,218 @@ function setSubjectLocation(coords, displayName) {
   subjectMarker.addListener('click', () => iw.open(map, subjectMarker));
 
   map.panTo(coords);
-  map.setZoom(16);
-
-  // Refresh any active rings to new center
+  map.setZoom(14);
   refreshRings();
+  setStatus(`Subject set: <span class="hi">${displayName}</span>. Add retailers or run 🐦 Pigeon.`);
+}
 
-  setStatus(`Subject set: <span class="hi">${displayName}</span>. Now add retailers or click Discover Nearby.`);
+// ════════════════════════════════════════════
+// 🐦  PIGEON FEATURE
+// ════════════════════════════════════════════
+function openPigeonModal() {
+  // Pre-fill subject if already set
+  const existingSubject = document.getElementById('subject-input').value.trim();
+  if (existingSubject) document.getElementById('pigeon-subject').value = existingSubject;
+  document.getElementById('pigeon-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pigeon-tenant').focus(), 100);
+}
+
+function closePigeonModal() {
+  document.getElementById('pigeon-modal').classList.remove('open');
+}
+
+async function runPigeon() {
+  const subjectAddr = document.getElementById('pigeon-subject').value.trim();
+  const tenantName  = document.getElementById('pigeon-tenant').value.trim();
+  const maxCount    = +document.getElementById('pigeon-count').value;
+  const radiusMi    = +document.getElementById('pigeon-radius').value;
+
+  if (!subjectAddr || !tenantName) { alert('Enter both a subject site and a tenant name.'); return; }
+
+  closePigeonModal();
+  showLoading(`Pigeon: Locating ${tenantName} near ${subjectAddr}…`);
+
+  // 1. Geocode subject
+  const subjectCoords = await geocodeAddress(subjectAddr);
+  if (!subjectCoords) { hideLoading(); alert('Could not locate subject site. Try a more specific address.'); return; }
+
+  // Set on main map & sync the main subject input
+  document.getElementById('subject-input').value = subjectAddr;
+  setSubjectLocation(subjectCoords, subjectAddr);
+
+  // 2. Text search for tenant
+  document.getElementById('loading-msg').textContent = `Finding ${tenantName} locations…`;
+  const rawResults = await new Promise(resolve => {
+    placesService.textSearch({
+      query: tenantName,
+      location: subjectCoords,
+      radius: radiusMi * 1609,
+    }, (results, status) => resolve(status === 'OK' ? results : []));
+  });
+
+  if (!rawResults.length) {
+    hideLoading();
+    setStatus(`🐦 Pigeon: No <span class="pig-hi">${tenantName}</span> locations found within ${radiusMi} miles. Try expanding the radius.`);
+    return;
+  }
+
+  // 3. Compute crow-flies distance from subject, sort, slice
+  const subjectLL = new google.maps.LatLng(subjectCoords);
+  const candidates = rawResults
+    .map(p => ({
+      name: p.name,
+      address: p.formatted_address || p.vicinity || '',
+      coords: { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() },
+      crowMeters: google.maps.geometry.spherical.computeDistanceBetween(
+        subjectLL, p.geometry.location
+      ),
+    }))
+    .sort((a, b) => a.crowMeters - b.crowMeters)
+    .slice(0, maxCount);
+
+  // 4. Driving distances via Distance Matrix
+  document.getElementById('loading-msg').textContent = 'Getting driving distances…';
+  const distSvc = new google.maps.DistanceMatrixService();
+  const distResp = await new Promise(resolve => {
+    distSvc.getDistanceMatrix({
+      origins: [subjectCoords],
+      destinations: candidates.map(c => c.coords),
+      travelMode: google.maps.TravelMode.DRIVING,
+      unitSystem: google.maps.UnitSystem.IMPERIAL,
+    }, (resp, status) => resolve(status === 'OK' ? resp : null));
+  });
+
+  candidates.forEach((c, i) => {
+    const el = distResp?.rows?.[0]?.elements?.[i];
+    c.driveText    = el?.status === 'OK' ? el.distance.text : null;
+    c.driveDur     = el?.status === 'OK' ? el.duration.text : null;
+    c.crowMiles    = (c.crowMeters / 1609.34).toFixed(1);
+  });
+
+  // 5. Clear existing retailers (pigeon takes over)
+  retailers.forEach(r => r.overlay?.setMap(null));
+  retailers = []; selectedId = null; colorIdx = 0;
+
+  // 6. Add pigeon retailers
+  pigeonMode = true;
+  pigeonData = { subject: subjectAddr, tenant: tenantName, locations: candidates };
+
+  document.getElementById('loading-msg').textContent = `Loading ${tenantName} logos…`;
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    const id = 'pig_' + i;
+    const r = {
+      id, name: c.name, address: c.address, coords: c.coords,
+      color: PIGEON_COLORS[i % PIGEON_COLORS.length],
+      logoUrls: getLogoUrls(tenantName),
+      logoUrl:  getLogoUrls(tenantName)[0],
+      loaded: false, size: globalSize, overlay: null,
+      pigeonIndex: i + 1,
+      crowMiles: c.crowMiles,
+      driveText: c.driveText,
+      driveDur: c.driveDur,
+    };
+    retailers.push(r);
+    await loadLogo(r);
+    placeOverlay(r);
+  }
+
+  // 7. Fit bounds
+  const bounds = new google.maps.LatLngBounds();
+  bounds.extend(subjectCoords);
+  candidates.forEach(c => bounds.extend(c.coords));
+  map.fitBounds(bounds, { padding: 100 });
+
+  // 8. Render Pigeon panel
+  renderPigeonPanel();
+  hideLoading();
+  setStatus(`🐦 Pigeon found <span class="pig-hi">${candidates.length} ${tenantName}</span> locations near <span class="hi">${subjectAddr}</span>`);
+}
+
+function renderPigeonPanel() {
+  if (!pigeonData) return;
+  const { subject, tenant, locations } = pigeonData;
+  const r0 = retailers[0];
+  const logoTag = r0?.loaded
+    ? `<img src="${r0.logoUrl}" style="width:22px;height:22px;object-fit:contain;background:white;border-radius:4px;padding:1px;flex-shrink:0;" crossorigin="anonymous"/>`
+    : `<span style="font-size:18px;">🐦</span>`;
+
+  // Panel header
+  document.getElementById('panel-header-icon').innerHTML = logoTag;
+  document.getElementById('panel-header-title').textContent = tenant;
+  document.getElementById('retailer-count').textContent = locations.length;
+  document.getElementById('panel').classList.add('pigeon-active');
+
+  // Build list
+  const list = document.getElementById('retailer-list');
+  list.innerHTML = '';
+
+  // Subject site card
+  const subEl = document.createElement('div');
+  subEl.className = 'pig-subject';
+  subEl.innerHTML = `<div class="pig-eyebrow">⭐ Subject Site</div><div class="pig-addr">${subject}</div>`;
+  list.appendChild(subEl);
+
+  // Divider label
+  const divLabel = document.createElement('div');
+  divLabel.style.cssText = 'font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;padding:8px 8px 4px;';
+  divLabel.textContent = `Closest ${tenant} Locations`;
+  list.appendChild(divLabel);
+
+  // Each location
+  locations.forEach((loc, i) => {
+    const r = retailers[i];
+    const col = PIGEON_COLORS[i % PIGEON_COLORS.length];
+    const el = document.createElement('div');
+    el.className = 'pig-item' + (selectedId === r?.id ? ' selected' : '');
+    el.onclick = () => { selectRetailer(r?.id); renderPigeonPanel(); };
+
+    const driveStr = loc.driveText ? `🚗 ${loc.driveText} (${loc.driveDur})` : '';
+    const crowStr  = `🐦 ${loc.crowMiles} mi crow-flies`;
+
+    el.innerHTML = `
+      <div class="pig-num" style="background:${col};">${i+1}</div>
+      <div class="pig-body">
+        <div class="pig-addr-line">${loc.address || loc.name}</div>
+        <div class="pig-dist">
+          ${driveStr ? `<span>${driveStr}</span>` : ''}
+          <span>${crowStr}</span>
+        </div>
+      </div>`;
+    list.appendChild(el);
+  });
+
+  // Footer: exit button + export
+  document.getElementById('panel-footer').innerHTML = `
+    <button class="btn-gray" style="width:100%;font-size:11px;margin-bottom:6px;" onclick="exitPigeonMode()">← Exit Pigeon Mode</button>
+    <button class="btn-green" style="width:100%;font-size:11px;" onclick="exportMap()">💾 Export PNG</button>
+  `;
+}
+
+function exitPigeonMode() {
+  pigeonMode = false;
+  pigeonData = null;
+  retailers.forEach(r => r.overlay?.setMap(null));
+  retailers = []; selectedId = null; colorIdx = 0;
+
+  // Restore normal panel header
+  document.getElementById('panel-header-icon').innerHTML = '';
+  document.getElementById('panel-header-title').textContent = 'Retailers on Map';
+  document.getElementById('panel').classList.remove('pigeon-active');
+
+  // Restore normal footer
+  document.getElementById('panel-footer').innerHTML = `
+    <div class="footer-label">
+      <span>Logo Size</span><span id="size-val">${globalSize}px</span>
+    </div>
+    <input type="range" id="size-slider" min="24" max="96" value="${globalSize}" oninput="bulkResize(this.value)"/>
+    <div class="footer-btns">
+      <button class="btn-gray" onclick="clearAll()">🗑 Clear All</button>
+      <button class="btn-gray" onclick="toggleLabels()">🏷 Labels: <span id="lbl-state">${showLabels?'ON':'OFF'}</span></button>
+    </div>`;
+
+  renderList();
+  setStatus('Pigeon mode exited. Back to standard Atlas.');
 }
 
 // ════════════════════════════════════════════
@@ -513,12 +824,9 @@ function setSubjectLocation(coords, displayName) {
 function setMapType(type) {
   if (!map) return;
   map.setMapTypeId(type);
-  ['streets','satellite','hybrid','terrain'].forEach(t => {
-    const id = 'mt-' + t;
-    document.getElementById(id)?.classList.remove('btn-active');
-  });
+  ['streets','satellite','hybrid','terrain'].forEach(t => document.getElementById('mt-'+t)?.classList.remove('btn-active'));
   const keyMap = { roadmap:'streets', satellite:'satellite', hybrid:'hybrid', terrain:'terrain' };
-  document.getElementById('mt-' + keyMap[type])?.classList.add('btn-active');
+  document.getElementById('mt-'+keyMap[type])?.classList.add('btn-active');
 }
 
 // ════════════════════════════════════════════
@@ -527,105 +835,58 @@ function setMapType(type) {
 function toggleMileRing(miles) {
   if (!subjectLatLng) { setStatus('Set a subject property first.'); return; }
   const key = miles + 'mi';
-  const btnId = 'ring-' + key;
   if (mileCircles[key]) {
-    mileCircles[key].setMap(null);
-    delete mileCircles[key];
-    document.getElementById(btnId).classList.remove('btn-ring-active');
+    mileCircles[key].setMap(null); delete mileCircles[key];
+    mileCircles[key+'_label']?.setMap(null); delete mileCircles[key+'_label'];
+    document.getElementById('ring-'+key).classList.remove('btn-ring-active');
     activeRings.delete(key);
   } else {
-    const colors = { '1mi': '#3b82f6', '3mi': '#10b981', '5mi': '#ef4444' };
-    mileCircles[key] = new google.maps.Circle({
-      map,
-      center: subjectLatLng,
-      radius: MILES_M[miles],
-      strokeColor: colors[key],
-      strokeOpacity: 0.85,
-      strokeWeight: 2,
-      fillOpacity: 0,
-      zIndex: 2,
-    });
-    // Add label
-    mileCircles[key + '_label'] = new google.maps.Marker({
-      position: google.maps.geometry
-        ? google.maps.geometry.spherical.computeOffset(
-            new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
-        : { lat: subjectLatLng.lat + (MILES_M[miles] / 111320), lng: subjectLatLng.lng },
-      map,
-      icon: { url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', scaledSize: new google.maps.Size(1,1) },
-      label: { text: miles + ' mi', color: colors[key], fontWeight: '700', fontSize: '12px' },
-      zIndex: 3,
-    });
-    document.getElementById(btnId).classList.add('btn-ring-active');
+    const colors = { '1mi':'#3b82f6','3mi':'#10b981','5mi':'#ef4444' };
+    mileCircles[key] = new google.maps.Circle({ map, center:subjectLatLng, radius:MILES_M[miles], strokeColor:colors[key], strokeOpacity:0.85, strokeWeight:2, fillOpacity:0, zIndex:2 });
+    const pos = google.maps.geometry?.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
+             || { lat: subjectLatLng.lat + MILES_M[miles]/111320, lng: subjectLatLng.lng };
+    mileCircles[key+'_label'] = new google.maps.Marker({ position:pos, map, icon:{url:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',scaledSize:new google.maps.Size(1,1)}, label:{text:miles+' mi',color:colors[key],fontWeight:'700',fontSize:'12px'}, zIndex:3 });
+    document.getElementById('ring-'+key).classList.add('btn-ring-active');
     activeRings.add(key);
   }
 }
 
 // ════════════════════════════════════════════
-// DRIVE TIME RINGS (approximate)
+// DRIVE TIME RINGS
 // ════════════════════════════════════════════
 function toggleDriveRing(mins) {
   if (!subjectLatLng) { setStatus('Set a subject property first.'); return; }
   const key = mins + 'min';
-  const btnId = 'ring-' + key;
   if (driveCircles[key]) {
-    driveCircles[key].setMap(null);
-    delete driveCircles[key];
-    document.getElementById(btnId).classList.remove('btn-ring-active');
+    driveCircles[key].setMap(null); delete driveCircles[key];
+    driveCircles[key+'_label']?.setMap(null); delete driveCircles[key+'_label'];
+    document.getElementById('ring-'+key).classList.remove('btn-ring-active');
     activeRings.delete(key);
   } else {
-    const colors = { '1min': '#a78bfa', '5min': '#f59e0b', '10min': '#f97316' };
-    driveCircles[key] = new google.maps.Circle({
-      map,
-      center: subjectLatLng,
-      radius: DRIVE_M[mins],
-      strokeColor: colors[key],
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
-      strokeDashPattern: [8, 4],
-      fillColor: colors[key],
-      fillOpacity: 0.06,
-      zIndex: 2,
-    });
-    const approxMiles = (DRIVE_M[mins] / 1609).toFixed(1);
-    driveCircles[key + '_label'] = new google.maps.Marker({
-      position: google.maps.geometry
-        ? google.maps.geometry.spherical.computeOffset(
-            new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
-        : { lat: subjectLatLng.lat, lng: subjectLatLng.lng + (DRIVE_M[mins] / 89000) },
-      map,
-      icon: { url: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', scaledSize: new google.maps.Size(1,1) },
-      label: { text: `~${mins} min`, color: colors[key], fontWeight: '700', fontSize: '12px' },
-      zIndex: 3,
-    });
-    document.getElementById(btnId).classList.add('btn-ring-active');
+    const colors = { '1min':'#a78bfa','5min':'#f59e0b','10min':'#f97316' };
+    driveCircles[key] = new google.maps.Circle({ map, center:subjectLatLng, radius:DRIVE_M[mins], strokeColor:colors[key], strokeOpacity:0.8, strokeWeight:2, fillColor:colors[key], fillOpacity:0.06, zIndex:2 });
+    const pos = google.maps.geometry?.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
+             || { lat: subjectLatLng.lat, lng: subjectLatLng.lng + DRIVE_M[mins]/89000 };
+    driveCircles[key+'_label'] = new google.maps.Marker({ position:pos, map, icon:{url:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',scaledSize:new google.maps.Size(1,1)}, label:{text:`~${mins} min`,color:colors[key],fontWeight:'700',fontSize:'12px'}, zIndex:3 });
+    document.getElementById('ring-'+key).classList.add('btn-ring-active');
     activeRings.add(key);
   }
 }
 
 function refreshRings() {
-  // Reposition rings to new subject location
-  const allMile = Object.keys(mileCircles).filter(k => !k.includes('_label'));
-  allMile.forEach(k => {
-    if (mileCircles[k]) mileCircles[k].setCenter(subjectLatLng);
+  Object.keys(mileCircles).filter(k=>!k.includes('_label')).forEach(k => {
+    mileCircles[k]?.setCenter(subjectLatLng);
     const miles = parseInt(k);
-    if (mileCircles[k + '_label'] && subjectLatLng) {
-      const pos = google.maps.geometry
-        ? google.maps.geometry.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
-        : { lat: subjectLatLng.lat + (MILES_M[miles] / 111320), lng: subjectLatLng.lng };
-      mileCircles[k + '_label'].setPosition(pos);
-    }
+    const pos = google.maps.geometry?.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
+             || { lat: subjectLatLng.lat + MILES_M[miles]/111320, lng: subjectLatLng.lng };
+    mileCircles[k+'_label']?.setPosition(pos);
   });
-  const allDrive = Object.keys(driveCircles).filter(k => !k.includes('_label'));
-  allDrive.forEach(k => {
-    if (driveCircles[k]) driveCircles[k].setCenter(subjectLatLng);
+  Object.keys(driveCircles).filter(k=>!k.includes('_label')).forEach(k => {
+    driveCircles[k]?.setCenter(subjectLatLng);
     const mins = parseInt(k);
-    if (driveCircles[k + '_label'] && subjectLatLng) {
-      const pos = google.maps.geometry
-        ? google.maps.geometry.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
-        : { lat: subjectLatLng.lat, lng: subjectLatLng.lng + (DRIVE_M[mins] / 89000) };
-      driveCircles[k + '_label'].setPosition(pos);
-    }
+    const pos = google.maps.geometry?.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
+             || { lat: subjectLatLng.lat, lng: subjectLatLng.lng + DRIVE_M[mins]/89000 };
+    driveCircles[k+'_label']?.setPosition(pos);
   });
 }
 
@@ -635,47 +896,25 @@ function refreshRings() {
 function setDrawMode(mode) {
   if (!drawingManager) return;
   if (currentDrawMode === mode) {
-    // toggle off
-    drawingManager.setDrawingMode(null);
-    setDrawBtnActive(null);
-    currentDrawMode = null;
+    drawingManager.setDrawingMode(null); setDrawBtnActive(null); currentDrawMode = null;
   } else {
-    const modeMap = {
-      polygon:   google.maps.drawing.OverlayType.POLYGON,
-      rectangle: google.maps.drawing.OverlayType.RECTANGLE,
-      polyline:  google.maps.drawing.OverlayType.POLYLINE,
-    };
-    drawingManager.setDrawingMode(modeMap[mode]);
-    setDrawBtnActive(mode);
-    currentDrawMode = mode;
-    setStatus(`Drawing mode: <span class="hi">${mode}</span>. Click on map to start drawing. Click again to finish.`);
+    const modeMap = { polygon:google.maps.drawing.OverlayType.POLYGON, rectangle:google.maps.drawing.OverlayType.RECTANGLE, polyline:google.maps.drawing.OverlayType.POLYLINE };
+    drawingManager.setDrawingMode(modeMap[mode]); setDrawBtnActive(mode); currentDrawMode = mode;
+    setStatus(`Drawing mode: <span class="hi">${mode}</span>. Click map to start.`);
   }
 }
-
 function setDrawBtnActive(mode) {
-  ['polygon','rectangle','polyline'].forEach(m => {
-    document.getElementById('draw-' + m)?.classList.remove('btn-draw-active');
-  });
-  if (mode) document.getElementById('draw-' + mode)?.classList.add('btn-draw-active');
+  ['polygon','rectangle','polyline'].forEach(m => document.getElementById('draw-'+m)?.classList.remove('btn-draw-active'));
+  if (mode) document.getElementById('draw-'+mode)?.classList.add('btn-draw-active');
 }
-
 function clearDrawings() {
-  // Clear drawn shapes
-  drawnShapes.forEach(s => s.setMap(null));
-  drawnShapes = [];
-  // Clear all rings
-  Object.values(mileCircles).forEach(c => c?.setMap(null));
-  mileCircles = {};
-  Object.values(driveCircles).forEach(c => c?.setMap(null));
-  driveCircles = {};
+  drawnShapes.forEach(s => s.setMap(null)); drawnShapes = [];
+  Object.values(mileCircles).forEach(c => c?.setMap(null)); mileCircles = {};
+  Object.values(driveCircles).forEach(c => c?.setMap(null)); driveCircles = {};
   activeRings.clear();
-  ['ring-1mi','ring-3mi','ring-5mi','ring-1min','ring-5min','ring-10min'].forEach(id => {
-    document.getElementById(id)?.classList.remove('btn-ring-active');
-  });
-  // Reset draw mode
+  ['ring-1mi','ring-3mi','ring-5mi','ring-1min','ring-5min','ring-10min'].forEach(id => document.getElementById(id)?.classList.remove('btn-ring-active'));
   if (drawingManager) drawingManager.setDrawingMode(null);
-  setDrawBtnActive(null);
-  currentDrawMode = null;
+  setDrawBtnActive(null); currentDrawMode = null;
   setStatus('All shapes and rings cleared.');
 }
 
@@ -690,28 +929,20 @@ function getDomain(name) {
   }
   return null;
 }
-
 function getLogoUrls(name) {
   const domain = getDomain(name) || name.toLowerCase().replace(/[^a-z0-9]/g,'') + '.com';
   return [
-    // Tier 1: logo.dev (high quality)
     `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=128&format=png`,
-    // Tier 2: clearbit (widely used)
     `https://logo.clearbit.com/${domain}`,
-    // Tier 3: Google favicon V2 (reliable, good quality)
     `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
-    // Tier 4: standard Google favicons (always works)
     `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
   ];
 }
-
-function getInitials(name) {
-  return name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-}
+function getInitials(name) { return name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 function nextColor() { return BRAND_COLORS[(colorIdx++) % BRAND_COLORS.length]; }
 
 // ════════════════════════════════════════════
-// ADD RETAILER
+// ADD RETAILER (normal mode)
 // ════════════════════════════════════════════
 async function addRetailer(name, address, coordsOverride) {
   if (!name) {
@@ -724,7 +955,6 @@ async function addRetailer(name, address, coordsOverride) {
   let coords = coordsOverride;
   if (!coords) {
     if (address) {
-      // Check if Places autocomplete already resolved it
       const place = retailerAC?.getPlace();
       if (place?.geometry) {
         coords = { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() };
@@ -742,9 +972,8 @@ async function addRetailer(name, address, coordsOverride) {
   const id = 'r' + Date.now() + Math.random().toString(36).slice(2,6);
   const color = nextColor();
   const logoUrls = getLogoUrls(name);
-  const r = { id, name, coords, color, logoUrl: logoUrls[0], logoUrls, loaded: false, size: globalSize, overlay: null };
+  const r = { id, name, coords, color, logoUrl:logoUrls[0], logoUrls, loaded:false, size:globalSize, overlay:null };
   retailers.push(r);
-
   await loadLogo(r);
   placeOverlay(r);
   renderList();
@@ -755,35 +984,27 @@ async function addRetailer(name, address, coordsOverride) {
 }
 
 function nearbyCoords() {
-  const n = retailers.length;
-  const a = (n * 137.508) * Math.PI / 180;
+  const n = retailers.length, a = (n * 137.508) * Math.PI / 180;
   const d = 0.0008 + Math.floor(n/10) * 0.0006;
   return { lat: subjectLatLng.lat + d * Math.sin(a), lng: subjectLatLng.lng + d * Math.cos(a) * 1.25 };
 }
 
 // ════════════════════════════════════════════
-// LOGO LOADING (robust 4-tier fallback)
+// LOGO LOADING (4-tier fallback)
 // ════════════════════════════════════════════
 async function loadLogo(r) {
   return new Promise(resolve => {
     const urls = [...r.logoUrls];
     let timeoutId = setTimeout(() => { r.loaded = false; resolve(); }, 6000);
-
     function tryNext() {
       if (!urls.length) { r.loaded = false; clearTimeout(timeoutId); resolve(); return; }
       const url = urls.shift();
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        // Make sure it's not a 1x1 placeholder
         if (img.naturalWidth > 8 && img.naturalHeight > 8) {
-          r.logoUrl = url;
-          r.loaded = true;
-          clearTimeout(timeoutId);
-          resolve();
-        } else {
-          tryNext();
-        }
+          r.logoUrl = url; r.loaded = true; clearTimeout(timeoutId); resolve();
+        } else { tryNext(); }
       };
       img.onerror = () => tryNext();
       img.src = url;
@@ -801,10 +1022,7 @@ function placeOverlay(r) {
   overlay.setMap(map);
   r.overlay = overlay;
 }
-
-function refreshOverlay(r) {
-  if (r.overlay) r.overlay.refresh();
-}
+function refreshOverlay(r) { if (r.overlay) r.overlay.refresh(); }
 
 // ════════════════════════════════════════════
 // GEOCODING
@@ -815,59 +1033,47 @@ function geocodeAddress(address) {
       if (status === 'OK' && results[0]) {
         const loc = results[0].geometry.location;
         resolve({ lat: loc.lat(), lng: loc.lng() });
-      } else {
-        resolve(null);
-      }
+      } else { resolve(null); }
     });
   });
 }
 
 // ════════════════════════════════════════════
-// DISCOVER NEARBY (Google Places)
+// DISCOVER NEARBY
 // ════════════════════════════════════════════
 async function discoverNearby() {
   if (!subjectLatLng) { alert('Set a subject property first.'); return; }
   showLoading('Discovering nearby businesses…');
-
   const seen = new Set(retailers.map(r => r.name.toLowerCase()));
   const found = [];
-
   const types = ['store','restaurant','food','bank','pharmacy','gas_station','gym','supermarket'];
   let pending = types.length;
-
   for (const type of types) {
-    placesService.nearbySearch({
-      location: subjectLatLng,
-      radius: 800,
-      type,
-    }, (results, status) => {
+    placesService.nearbySearch({ location: subjectLatLng, radius: 800, type }, (results, status) => {
       if (status === google.maps.places.PlacesServiceStatus.OK && results) {
         for (const p of results) {
           const name = p.name;
           if (!name || seen.has(name.toLowerCase())) continue;
           seen.add(name.toLowerCase());
-          found.push({ name, coords: { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() } });
+          found.push({ name, coords: { lat:p.geometry.location.lat(), lng:p.geometry.location.lng() } });
         }
       }
-      pending--;
-      if (pending === 0) finishDiscover(found);
+      if (--pending === 0) finishDiscover(found);
     });
   }
 }
-
 async function finishDiscover(found) {
   hideLoading();
-  if (!found.length) { setStatus('No new businesses found nearby. Try adding manually.'); return; }
-  for (const { name, coords } of found.slice(0, 30)) {
-    await addRetailer(name, null, coords);
-  }
-  setStatus(`Discovered <span class="hi">${found.length}</span> nearby businesses. Drag logos to reposition.`);
+  if (!found.length) { setStatus('No new businesses found nearby.'); return; }
+  for (const { name, coords } of found.slice(0,30)) await addRetailer(name, null, coords);
+  setStatus(`Discovered <span class="hi">${found.length}</span> nearby businesses.`);
 }
 
 // ════════════════════════════════════════════
-// PANEL / LIST
+// PANEL / LIST (normal mode)
 // ════════════════════════════════════════════
 function renderList() {
+  if (pigeonMode) { renderPigeonPanel(); return; }
   const list = document.getElementById('retailer-list');
   document.getElementById('retailer-count').textContent = retailers.length;
   if (!retailers.length) {
@@ -890,12 +1096,9 @@ function renderList() {
 function selectRetailer(id) {
   selectedId = selectedId === id ? null : id;
   retailers.forEach(r => refreshOverlay(r));
-  renderList();
+  if (pigeonMode) { renderPigeonPanel(); } else { renderList(); }
   const r = retailers.find(x => x.id === id);
-  if (r && selectedId) {
-    map.panTo(r.coords);
-    setStatus(`Selected: <span class="hi">${r.name}</span>. Drag on map to reposition.`);
-  }
+  if (r && selectedId) { map.panTo(r.coords); }
 }
 
 function removeRetailer(id) {
@@ -904,76 +1107,55 @@ function removeRetailer(id) {
   retailers = retailers.filter(x => x.id !== id);
   if (selectedId === id) selectedId = null;
   renderList();
-  setStatus('Retailer removed.');
 }
 
 // ════════════════════════════════════════════
-// BULK RESIZE
+// BULK RESIZE / LABELS / SPREAD
 // ════════════════════════════════════════════
 function bulkResize(val) {
   globalSize = +val;
   document.getElementById('size-val').textContent = val + 'px';
   retailers.forEach(r => { r.size = globalSize; refreshOverlay(r); });
 }
-
-// ════════════════════════════════════════════
-// SPREAD LOGOS
-// ════════════════════════════════════════════
+function toggleLabels() {
+  showLabels = !showLabels;
+  const el = document.getElementById('lbl-state');
+  if (el) el.textContent = showLabels ? 'ON' : 'OFF';
+  retailers.forEach(r => refreshOverlay(r));
+}
 function spreadLogos() {
   if (!subjectLatLng || !retailers.length) return;
   const n = retailers.length, baseR = 0.0012;
   retailers.forEach((r, i) => {
     const ring = Math.floor(i/12), pos = i%12, countInRing = Math.min(12, n - ring*12);
-    const angle = (pos/countInRing) * 2 * Math.PI;
-    const radius = baseR * (ring+1);
+    const angle = (pos/countInRing) * 2 * Math.PI, radius = baseR * (ring+1);
     r.coords = { lat: subjectLatLng.lat + radius*Math.sin(angle), lng: subjectLatLng.lng + radius*Math.cos(angle)*1.4 };
-    if (r.overlay) {
-      r.overlay.latlng = new google.maps.LatLng(r.coords.lat, r.coords.lng);
-      r.overlay.draw();
-    }
+    if (r.overlay) { r.overlay.latlng = new google.maps.LatLng(r.coords.lat, r.coords.lng); r.overlay.draw(); }
   });
-  setStatus('Logos spread out around the subject property.');
+  setStatus('Logos spread around subject property.');
 }
 
 // ════════════════════════════════════════════
-// TOGGLE LABELS
-// ════════════════════════════════════════════
-function toggleLabels() {
-  showLabels = !showLabels;
-  document.getElementById('lbl-state').textContent = showLabels ? 'ON' : 'OFF';
-  retailers.forEach(r => refreshOverlay(r));
-}
-
-// ════════════════════════════════════════════
-// EXPORT
-// ════════════════════════════════════════════
-async function exportMap() {
-  showLoading('Capturing map…');
-  try {
-    const canvas = await html2canvas(document.getElementById('map'), {
-      useCORS: true, allowTaint: true, scale: 2, logging: false, backgroundColor: '#000'
-    });
-    const link = document.createElement('a');
-    link.download = `atlas-map-${new Date().toISOString().slice(0,10)}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-    hideLoading();
-    setStatus('Map exported to PNG.');
-  } catch(e) {
-    hideLoading();
-    setStatus('Export failed. Use Cmd+Shift+4 to screenshot instead.');
-  }
-}
-
-// ════════════════════════════════════════════
-// CLEAR ALL
+// CLEAR ALL / EXPORT
 // ════════════════════════════════════════════
 function clearAll() {
   if (!confirm('Remove all retailers from map?')) return;
   retailers.forEach(r => r.overlay?.setMap(null));
   retailers = []; selectedId = null; colorIdx = 0;
-  renderList();
+  if (pigeonMode) exitPigeonMode(); else renderList();
   setStatus('All retailers cleared.');
+}
+async function exportMap() {
+  showLoading('Capturing map…');
+  try {
+    const canvas = await html2canvas(document.getElementById('map'), { useCORS:true, allowTaint:true, scale:2, logging:false, backgroundColor:'#000' });
+    const link = document.createElement('a');
+    link.download = `atlas-pigeon-${new Date().toISOString().slice(0,10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    hideLoading();
+    setStatus('Map exported.');
+  } catch(e) { hideLoading(); setStatus('Export failed — try Cmd+Shift+4 to screenshot.'); }
 }
 
 // ════════════════════════════════════════════
@@ -984,24 +1166,22 @@ function hideLoading()     { document.getElementById('loading').style.display = 
 function setStatus(html)   { document.getElementById('status').innerHTML = html; }
 
 // ════════════════════════════════════════════
-// KEYBOARD SHORTCUTS
+// KEYBOARD
 // ════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && document.activeElement.tagName !== 'INPUT')
-    removeRetailer(selectedId);
-  if (e.key === 'Escape') {
+  if ((e.key==='Delete'||e.key==='Backspace') && selectedId && document.activeElement.tagName!=='INPUT') removeRetailer(selectedId);
+  if (e.key==='Escape') {
+    closePigeonModal();
     selectedId = null; retailers.forEach(r => refreshOverlay(r)); renderList();
     if (drawingManager) { drawingManager.setDrawingMode(null); setDrawBtnActive(null); currentDrawMode = null; }
   }
 });
-document.getElementById('subject-input').addEventListener('keydown', e => { if (e.key === 'Enter') geocodeSubjectManual(); });
-document.getElementById('retailer-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') addRetailer(); });
+document.getElementById('subject-input').addEventListener('keydown', e => { if (e.key==='Enter') geocodeSubjectManual(); });
+document.getElementById('retailer-name-input').addEventListener('keydown', e => { if (e.key==='Enter') addRetailer(); });
+document.getElementById('pigeon-tenant').addEventListener('keydown', e => { if (e.key==='Enter') runPigeon(); });
+document.getElementById('pigeon-subject').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('pigeon-tenant').focus(); });
 </script>
 
-<!-- Load Google Maps with Places + Drawing libraries -->
-<script async
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLnBGWiIGI8OtYlHgLImzn0JY5FVjuQ6k&libraries=places,drawing,geometry&callback=initMap">
-</script>
-
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCLnBGWiIGI8OtYlHgLImzn0JY5FVjuQ6k&libraries=places,drawing,geometry&callback=initMap"></script>
 </body>
 </html>
