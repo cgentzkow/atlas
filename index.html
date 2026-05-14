@@ -622,6 +622,7 @@ function initMap() {
     currentDrawMode = null;
   });
 
+  renderRecentSubjects();
   setStatus('Ready. Enter a subject property and click <span class="hi">Set Property</span>, or hit <span class="pig-hi">🐦 Pigeon</span> to find closest tenant locations.');
 }
 
@@ -666,6 +667,7 @@ function setSubjectLocation(coords, displayName) {
   });
   subjectMarker.addListener('click', () => iw.open(map, subjectMarker));
 
+  saveRecentSubject(displayName);
   map.panTo(coords);
   map.setZoom(14);
   refreshRings();
@@ -679,6 +681,8 @@ function openPigeonModal() {
   // Pre-fill subject if already set
   const existingSubject = document.getElementById('subject-input').value.trim();
   if (existingSubject) document.getElementById('pigeon-subject').value = existingSubject;
+  var _rec=getRecentSubjects();
+  if(_rec.length&&!document.getElementById('pigeon-subject').value){document.getElementById('pigeon-subject').value=_rec[0];}
   document.getElementById('pigeon-modal').classList.add('open');
   setTimeout(() => document.getElementById('pigeon-tenant').focus(), 100);
 }
@@ -1425,6 +1429,39 @@ document.getElementById('retailer-name-input').addEventListener('keydown', e => 
 // ════════════════════════════════════════════
 let rbState = null;
 let rbMapCache = {};
+let rbMapDims = {};
+
+
+// ── Recent Subject Properties (stored in localStorage) ───────────────
+function saveRecentSubject(addr) {
+  if (!addr || addr.length < 5) return;
+  var list = JSON.parse(localStorage.getItem('atlas_recents') || '[]');
+  list = list.filter(function(a){ return a !== addr; });
+  list.unshift(addr);
+  localStorage.setItem('atlas_recents', JSON.stringify(list.slice(0, 5)));
+  renderRecentSubjects();
+}
+function getRecentSubjects() {
+  return JSON.parse(localStorage.getItem('atlas_recents') || '[]');
+}
+function renderRecentSubjects() {
+  var list = getRecentSubjects();
+  var wrap = document.getElementById('recent-bar');
+  if (!wrap) return;
+  if (!list.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = '<span style="font-size:10px;color:#9ca3af;white-space:nowrap;padding-top:3px;flex-shrink:0;">Recent:</span>' +
+    list.map(function(a) {
+      var label = a.split(',').slice(0,2).join(',');
+      return '<button class="btn-gray" style="font-size:11px;padding:3px 10px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;" onclick="loadRecentSubject(this.dataset.addr)" data-addr="'+a.replace(/"/g,'&quot;')+'">'+label+'</button>';
+    }).join('');
+}
+function loadRecentSubject(addr) {
+  document.getElementById('subject-input').value = addr;
+  document.getElementById('pigeon-subject').value = addr;
+  geocodeSubjectManual();
+}
+// ─────────────────────────────────────────────────────────────────────
 
 function openReportBuilder() {
   if (!pigeonData) { alert('Run Pigeon first.'); return; }
@@ -1463,6 +1500,7 @@ async function rbCaptureCurrentMap() {
   const canvas = await html2canvas(document.getElementById('map'),
     {useCORS:true,allowTaint:true,scale:1.6,logging:false,backgroundColor:'#000'});
   rbMapCache[type] = canvas.toDataURL('image/jpeg', 0.88);
+  rbMapDims[type] = {w:canvas.width, h:canvas.height};
   rbState.mapType = type;
 }
 
@@ -1483,6 +1521,7 @@ async function rbSwitchMapType(type) {
   const canvas = await html2canvas(document.getElementById('map'),
     {useCORS:true,allowTaint:true,scale:1.6,logging:false,backgroundColor:'#000'});
   rbMapCache[type] = canvas.toDataURL('image/jpeg', 0.88);
+  rbMapDims[type] = {w:canvas.width, h:canvas.height};
   map.setMapTypeId(currentType);
   hideRbLoading();
   renderRbPreview();
@@ -1540,6 +1579,40 @@ function renderRbPreview() {
   preview.innerHTML = buildRbHTML(mapImg, W, H);
 }
 
+
+function buildLegendTable(theme, tableW) {
+  var dark=theme==='dark';
+  var TEAL='#00A39E',BC=['#7c3aed','#4f46e5','#0ea5e9','#10b981','#f59e0b','#ef4444'];
+  var bgH='#1A1F23',textH='#F7F5F1';
+  var bgR1=dark?'rgba(255,255,255,0.06)':'#FBFAF7',bgR2=dark?'rgba(0,0,0,0.04)':'white';
+  var textC=dark?'#e5e7eb':'#1A1F23',textM=dark?'#9ca3af':'#7A7A7A';
+  var subjBg=dark?'rgba(30,58,95,0.95)':'#EFEBE3',subjLabel=dark?'#93c5fd':TEAL,subjText=dark?'#f9fafb':'#1A1F23';
+  var html='';
+  html+='<div style="padding:6px 8px;background:'+subjBg+';">';
+  html+='<div style="font-size:6px;font-weight:700;color:'+subjLabel+';text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Subject Site</div>';
+  html+='<div style="font-size:8px;color:'+subjText+';font-weight:600;line-height:1.3;">'+escHtml(pigeonData.subject)+'</div>';
+  html+='</div>';
+  html+='<table style="width:100%;border-collapse:collapse;">';
+  html+='<thead><tr style="background:'+bgH+';"><th style="width:28px;padding:4px;text-align:center;font-size:6px;font-weight:700;color:'+textH+';letter-spacing:0.3px;">LOGO</th>';
+  html+='<th style="width:22px;padding:4px;text-align:center;font-size:6px;font-weight:700;color:'+textH+';">#</th>';
+  html+='<th style="padding:4px 5px;text-align:left;font-size:6px;font-weight:700;color:'+textH+';letter-spacing:0.3px;">ADDRESS</th>';
+  html+='<th style="width:64px;padding:4px;text-align:center;font-size:6px;font-weight:700;color:'+textH+';letter-spacing:0.3px;">DRIVE</th>';
+  html+='<th style="width:52px;padding:4px;text-align:center;font-size:6px;font-weight:700;color:'+textH+';letter-spacing:0.3px;">CROW-FLIES</th></tr></thead><tbody>';
+  retailers.forEach(function(r,i){
+    var c=BC[i%BC.length],bg=i%2===0?bgR1:bgR2;
+    html+='<tr style="background:'+bg+';">';
+    html+='<td style="padding:4px;text-align:center;">';
+    if(r.loaded){html+='<img src="'+r.logoUrl+'" style="width:20px;height:20px;object-fit:contain;background:white;border-radius:3px;display:block;margin:auto;" crossorigin="anonymous"/>';}
+    else{html+='<div style="width:20px;height:20px;background:'+c+';border-radius:3px;margin:auto;"></div>';}
+    html+='</td><td style="padding:4px;text-align:center;"><div style="width:17px;height:17px;border-radius:50%;background:'+c+';color:white;font-size:8px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">'+(i+1)+'</div></td>';
+    html+='<td style="padding:4px 5px;font-size:7px;color:'+textC+';line-height:1.3;">'+escHtml((r.address||r.name).split(',').slice(0,2).join(','))+'</td>';
+    html+='<td style="padding:4px;text-align:center;font-size:7px;color:'+textC+';line-height:1.4;">'+(r.driveText||'&mdash;')+(r.driveDur?'<br/><span style="font-size:6px;color:'+textM+';">('+r.driveDur+')</span>':'')+'</td>';
+    html+='<td style="padding:4px;text-align:center;font-size:7px;color:'+textC+';">'+(r.crowMiles?r.crowMiles+' mi':'&mdash;')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  return html;
+}
+
 function buildRbHTML(mapImg, W, H) {
   var TEAL='#00A39E',INK='#1A1F23',PAPER='#F7F5F1',PD='#EFEBE3',BONE='#FBFAF7',GR='#989898';
   var BC=['#7c3aed','#4f46e5','#0ea5e9','#10b981','#f59e0b','#ef4444'];
@@ -1555,61 +1628,32 @@ function buildRbHTML(mapImg, W, H) {
   html+='<div style="font-size:8px;color:'+GR+';margin-top:3px;letter-spacing:0.3px;">'+escHtml(rbState.subtitle)+'</div></div></div>';
   // Map as img tag (best html2canvas quality)
   html+='<div style="position:absolute;top:'+HDR+'px;left:0;width:'+MAP_W+'px;height:'+MAP_H+'px;overflow:hidden;background:#1a2530;">';
-  if(mapImg){html+='<img src="'+mapImg+'" style="width:100%;height:100%;display:block;"/>';}
+  var _d=rbMapDims[rbState.mapType]||{w:MAP_W,h:MAP_H};
+  var _s=Math.max(MAP_W/_d.w,MAP_H/_d.h),_iw=Math.round(_d.w*_s),_ih=Math.round(_d.h*_s);
+  var _ox=Math.round(-(_iw-MAP_W)/2),_oy=Math.round(-(_ih-MAP_H)/2);
+  if(mapImg){html+='<img src="'+mapImg+'" style="position:absolute;top:'+_oy+'px;left:'+_ox+'px;width:'+_iw+'px;height:'+_ih+'px;display:block;"/>';}
   html+='</div>';
-  // Overlay legend
+  // Overlay legend — 5-col table on map
   if(tp==='overlay'){
-    html+='<div style="position:absolute;bottom:'+(FTR+12)+'px;right:12px;width:230px;background:rgba(17,24,39,0.92);border-radius:6px;overflow:hidden;">';
-    html+='<div style="height:3px;background:'+TEAL+'"></div><div style="padding:10px;">';
-    html+='<div style="font-size:7px;font-weight:700;color:#93c5fd;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">SUBJECT SITE</div>';
-    html+='<div style="font-size:8px;color:#f9fafb;margin-bottom:8px;line-height:1.3;">'+escHtml(pigeonData.subject)+'</div>';
-    retailers.forEach(function(r,i){var c=BC[i%BC.length];
-      html+='<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">';
-      if(r.loaded){html+='<img src="'+r.logoUrl+'" style="width:20px;height:20px;object-fit:contain;background:white;border-radius:3px;flex-shrink:0;" crossorigin="anonymous"/>';}
-      else{html+='<div style="width:20px;height:20px;background:'+c+';border-radius:3px;flex-shrink:0;"></div>';}
-      html+='<div style="width:18px;height:18px;border-radius:50%;background:'+c+';color:white;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+(i+1)+'</div>';
-      html+='<div style="flex:1;min-width:0;"><div style="font-size:8px;color:#e5e7eb;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml((r.address||r.name).split(',')[0])+'</div>';
-      html+='<div style="font-size:7px;color:#9ca3af;">'+(r.driveText||'')+(r.driveDur?' ('+r.driveDur+')':'')+(r.crowMiles?' &bull; '+r.crowMiles+' mi':'')+'</div></div></div>';
-    });
-    html+='</div></div>';
-  }
-  // Right column
-  if(tp==='right'){
-    html+='<div style="position:absolute;top:'+HDR+'px;left:'+MAP_W+'px;width:'+LEG_W+'px;height:'+CONT_H+'px;background:'+PAPER+';border-left:2.5px solid '+TEAL+';overflow:hidden;">';
-    html+='<div style="padding:12px 11px 8px;">';
-    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">';
-    if(r0logo){html+='<img src="'+r0logo+'" style="width:30px;height:30px;object-fit:contain;background:white;border-radius:5px;padding:2px;border:1px solid rgba(0,0,0,.08);flex-shrink:0;" crossorigin="anonymous"/>';}
-    html+='<div><div style="font-size:11px;font-weight:700;color:'+INK+';">'+escHtml(pigeonData.tenant)+'</div><div style="font-size:7px;color:'+GR+';">proximity analysis</div></div></div>';
-    html+='<div style="background:'+PD+';border-radius:3px;padding:8px;margin-bottom:8px;"><div style="font-size:6.5px;font-weight:700;color:'+TEAL+';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Subject Site</div>';
-    html+='<div style="font-size:7.5px;color:'+INK+';font-weight:500;line-height:1.3;">'+escHtml(pigeonData.subject)+'</div></div>';
-    html+='<div style="font-size:6.5px;font-weight:700;color:'+TEAL+';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Closest Locations</div></div>';
-    retailers.forEach(function(r,i){var c=BC[i%BC.length];
-      html+='<div style="display:flex;gap:6px;align-items:center;padding:6px 11px;border-top:1px solid #ebe9e5;">';
-      if(r.loaded){html+='<img src="'+r.logoUrl+'" style="width:22px;height:22px;object-fit:contain;background:white;border-radius:4px;padding:1px;border:1px solid rgba(0,0,0,.08);flex-shrink:0;" crossorigin="anonymous"/>';}
-      else{html+='<div style="width:22px;height:22px;background:'+c+';border-radius:4px;flex-shrink:0;"></div>';}
-      html+='<div style="width:19px;height:19px;border-radius:50%;background:'+c+';color:white;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">'+(i+1)+'</div>';
-      html+='<div style="flex:1;min-width:0;"><div style="font-size:7.5px;color:'+INK+';font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escHtml(r.address||r.name)+'</div>';
-      html+='<div style="font-size:7px;color:'+GR+';margin-top:1px;">'+(r.driveText||'')+(r.driveDur?' ('+r.driveDur+')':'')+(r.crowMiles?' &bull; '+r.crowMiles+' mi':'')+'</div></div></div>';
-    });
+    var _otw=Math.min(W-20,330);
+    html+='<div style="position:absolute;bottom:'+(FTR+12)+'px;right:12px;width:'+_otw+'px;background:rgba(17,24,39,0.94);border-radius:6px;overflow:hidden;border-top:3px solid '+TEAL+';">';
+    html+=buildLegendTable('dark',_otw);
     html+='</div>';
   }
-  // Bottom table
-  if(tp==='bottom'){var btTop=HDR+MAP_H,btH=CONT_H-MAP_H;
+  // Right column — 5-col table
+  if(tp==='right'){
+    html+='<div style="position:absolute;top:'+HDR+'px;left:'+MAP_W+'px;width:'+LEG_W+'px;height:'+CONT_H+'px;background:'+PAPER+';border-left:2.5px solid '+TEAL+';overflow:hidden;display:flex;flex-direction:column;">';
+    if(r0logo){html+='<div style="padding:8px 10px 6px;border-bottom:1px solid #e5e2dd;display:flex;align-items:center;gap:8px;flex-shrink:0;"><img src="'+r0logo+'" style="width:24px;height:24px;object-fit:contain;background:white;border-radius:4px;padding:1px;border:1px solid rgba(0,0,0,.08);" crossorigin="anonymous"/><div style="font-size:10px;font-weight:700;color:'+INK+';">'+escHtml(pigeonData.tenant)+'</div></div>';}
+    html+='<div style="flex:1;overflow:hidden;">';
+    html+=buildLegendTable('light',LEG_W);
+    html+='</div></div>';
+  }
+  // Below map — 5-col table
+  if(tp==='bottom'){
+    var btTop=HDR+MAP_H,btH=CONT_H-MAP_H;
     html+='<div style="position:absolute;top:'+btTop+'px;left:0;width:'+W+'px;height:'+btH+'px;overflow:hidden;background:white;">';
-    html+='<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:'+INK+';color:'+PAPER+';">';
-    html+='<th style="width:38px;padding:5px;text-align:center;font-size:7px;">LOGO</th><th style="width:28px;padding:5px;text-align:center;font-size:7px;">#</th>';
-    html+='<th style="padding:5px 6px;text-align:left;font-size:7px;">ADDRESS</th><th style="width:130px;padding:5px 6px;text-align:center;font-size:7px;">DRIVING</th><th style="width:85px;padding:5px 6px;text-align:center;font-size:7px;">CROW-FLIES</th>';
-    html+='</tr></thead><tbody>';
-    retailers.forEach(function(r,i){var c=BC[i%BC.length],bg=i%2===0?BONE:'white';
-      html+='<tr style="background:'+bg+';"><td style="padding:5px;text-align:center;">';
-      if(r.loaded){html+='<img src="'+r.logoUrl+'" style="width:24px;height:24px;object-fit:contain;display:block;margin:auto;" crossorigin="anonymous"/>';}
-      else{html+='<div style="width:24px;height:24px;background:'+c+';border-radius:3px;margin:auto;"></div>';}
-      html+='</td><td style="padding:5px;text-align:center;"><div style="width:18px;height:18px;border-radius:50%;background:'+c+';color:white;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;">'+(i+1)+'</div></td>';
-      html+='<td style="padding:5px 6px;font-size:8px;color:'+INK+';">'+escHtml(r.address||r.name)+'</td>';
-      html+='<td style="padding:5px 6px;font-size:8px;text-align:center;color:'+INK+';">'+(r.driveText||'&mdash;')+(r.driveDur?' ('+r.driveDur+')':'')+'</td>';
-      html+='<td style="padding:5px 6px;font-size:8px;text-align:center;color:'+INK+';">'+(r.crowMiles?r.crowMiles+' mi':'&mdash;')+'</td></tr>';
-    });
-    html+='</tbody></table></div>';
+    html+=buildLegendTable('light',W);
+    html+='</div>';
   }
   // Footer
   html+='<div style="position:absolute;bottom:0;left:0;right:0;height:'+FTR+'px;background:'+PD+';border-top:2px solid '+TEAL+';display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;">';
