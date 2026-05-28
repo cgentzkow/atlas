@@ -63,6 +63,40 @@
     .btn-gray:hover { background: #4b5563; }
     .btn-pigeon { background: linear-gradient(135deg,#7c3aed,#4f46e5); color: white; }
     .btn-pigeon:hover { background: linear-gradient(135deg,#6d28d9,#4338ca); }
+    /* ── Void Analysis ── */
+    .btn-void { background: linear-gradient(135deg,#059669,#0d9488); color: white; }
+    .btn-void:hover { background: linear-gradient(135deg,#047857,#0f766e); }
+    #void-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 4000; align-items: center; justify-content: center; }
+    #void-modal.open { display: flex; }
+    .void-modal-box { background: #1f2937; border-radius: 14px; padding: 28px 28px 24px; width: 460px; border: 1px solid #374151; box-shadow: 0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(5,150,105,0.3); }
+    .void-modal-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .void-modal-head h2 { font-size:20px; font-weight:700; color:#f9fafb; letter-spacing:-0.3px; }
+    .void-modal-sub { font-size:13px; color:#9ca3af; margin-bottom:20px; line-height:1.5; }
+    .void-field { margin-bottom:14px; }
+    .void-field label { display:block; font-size:11px; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:5px; }
+    .void-field input[type="text"] { width:100%; }
+    .void-field-row { display:flex; gap:14px; align-items:flex-start; }
+    .void-range-wrap { flex:1; }
+    .void-range-val { font-size:14px; font-weight:700; color:#34d399; min-width:32px; text-align:right; padding-top:2px; }
+    input[type="range"].void-range { accent-color: #059669; }
+    .void-modal-footer { display:flex; gap:8px; margin-top:20px; }
+    .void-modal-footer button { flex:1; padding:9px; }
+    .btn-run-void { background:linear-gradient(135deg,#059669,#0d9488); color:white; font-size:13px; font-weight:600; }
+    .btn-run-void:hover { background:linear-gradient(135deg,#047857,#0f766e); }
+    .void-item { display:flex; gap:9px; align-items:flex-start; padding:7px 8px; border-radius:6px; cursor:pointer; transition:background 0.15s; border-top:1px solid #1f2937; }
+    .void-item:hover { background:#1f2937; }
+    .void-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:700; flex-shrink:0; white-space:nowrap; }
+    .void-red    { background:rgba(239,68,68,.2);  color:#f87171; }
+    .void-yellow { background:rgba(251,191,36,.2); color:#fbbf24; }
+    .void-green  { background:rgba(52,211,153,.2); color:#34d399; }
+    .void-cat { font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:0.4px; margin-top:1px; }
+    .void-dist { font-size:11px; color:#9ca3af; display:flex; gap:8px; flex-wrap:wrap; margin-top:3px; }
+    #void-progress-wrap { margin:10px 0 4px; display:none; }
+    #void-progress-bg { height:5px; background:#374151; border-radius:3px; }
+    #void-progress-bar { height:5px; background:#059669; border-radius:3px; width:0%; transition:width .3s; }
+    #void-progress-text { font-size:11px; color:#6b7280; margin-top:5px; }
+    .panel-void-active { border-color:#059669 !important; box-shadow:0 8px 32px rgba(5,150,105,.3) !important; }
+
     .btn-active { background: #1d4ed8 !important; color: white !important; box-shadow: inset 0 0 0 2px #93c5fd; }
     .btn-ring-active { background: #1e3a5f !important; color: #93c5fd !important; border-color: #3b82f6 !important; }
     .btn-draw-active { background: #4c1d95 !important; color: #c4b5fd !important; border-color: #7c3aed !important; }
@@ -218,6 +252,7 @@
   <div style="flex:1"></div>
   <a href="https://logos-9ln.pages.dev" target="_blank" class="btn-gray" style="text-decoration:none;font-size:12px;" title="Open Logo Library">🎨 Logos</a>
   <button class="btn-pigeon" onclick="openPigeonModal()" title="Find closest locations of a specific tenant">🐦 Pigeon</button>
+  <button class="btn-void" onclick="openVoidModal()" title="Run void analysis for all top pad tenants">🔍 Void</button>
   <button class="btn-amber" onclick="spreadLogos()" title="Arrange logos in a circle">📐 Spread</button>
   <button class="btn-green" onclick="exportMap()" title="Download as PNG">💾 Export PNG</button>
 </div>
@@ -345,6 +380,46 @@
       <button class="btn-run-pigeon" onclick="runPigeon()">🐦 Find Locations</button>
     </div>
   </div>
+
+<!-- ══ Void Modal ══ -->
+<div id="void-modal">
+  <div class="void-modal-box">
+    <div class="void-modal-head"><span style="font-size:26px;">🔍</span><h2>Void Analysis</h2></div>
+    <p class="void-modal-sub">Find the nearest location of each of your Top 40 pad tenants. Identifies true voids in the market around your site.</p>
+    <div class="void-field">
+      <label>Subject Site</label>
+      <input type="text" id="void-subject" placeholder="6990 University Ave, La Mesa, CA"/>
+    </div>
+    <div class="void-field">
+      <label>Thresholds</label>
+      <div class="void-field-row">
+        <div class="void-range-wrap">
+          <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">🔴 Void if farther than</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="range" class="void-range" id="void-threshold" min="1" max="15" value="3" step="0.5" style="flex:1;" oninput="document.getElementById('void-threshold-val').textContent=this.value+' mi'"/>
+            <span id="void-threshold-val" class="void-range-val">3 mi</span>
+          </div>
+        </div>
+        <div class="void-range-wrap">
+          <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">🟡 Near if farther than</div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input type="range" class="void-range" id="void-near-threshold" min="0.5" max="10" value="1.5" step="0.5" style="flex:1;" oninput="document.getElementById('void-near-val').textContent=this.value+' mi'"/>
+            <span id="void-near-val" class="void-range-val">1.5 mi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="void-progress-wrap">
+      <div id="void-progress-bg"><div id="void-progress-bar"></div></div>
+      <div id="void-progress-text">Initializing...</div>
+    </div>
+    <div class="void-modal-footer">
+      <button class="btn-gray" id="void-cancel-btn" onclick="closeVoidModal()">Cancel</button>
+      <button class="btn-run-void" id="void-run-btn" onclick="runVoid()">🔍 Run Void Analysis</button>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <script>
@@ -1740,6 +1815,296 @@ async function downloadRbPNG() {
 }
 
 document.getElementById('pigeon-tenant').addEventListener('keydown', e => { if (e.key==='Enter') runPigeon(); });
+
+// ════════════════════════════════════════════
+// VOID ANALYSIS
+// ════════════════════════════════════════════
+const VOID_TENANTS = [
+  { name:'Starbucks',                     cat:'Coffee' },
+  { name:'Better Buzz Coffee',            cat:'Coffee' },
+  { name:'Black Rock Coffee Bar',         cat:'Coffee' },
+  { name:'Dutch Bros Coffee',             cat:'Coffee' },
+  { name:'7 Brew Coffee',                 cat:'Coffee' },
+  { name:'In-N-Out Burger',               cat:'QSR Drive-Thru' },
+  { name:'Chick-fil-A',                   cat:'QSR Drive-Thru' },
+  { name:"Raising Cane's Chicken Fingers",cat:'QSR Drive-Thru' },
+  { name:'El Pollo Loco',                 cat:'QSR Drive-Thru' },
+  { name:'Jack in the Box',               cat:'QSR Drive-Thru' },
+  { name:"McDonald's",                    cat:'QSR Drive-Thru' },
+  { name:"Wendy's",                       cat:'QSR Drive-Thru' },
+  { name:'Del Taco',                      cat:'QSR Drive-Thru' },
+  { name:'Taco Bell',                     cat:'QSR Drive-Thru' },
+  { name:'Chipotle Mexican Grill',        cat:'QSR Drive-Thru' },
+  { name:'The Habit Burger Grill',        cat:'QSR Drive-Thru' },
+  { name:'Panda Express',                 cat:'QSR Drive-Thru' },
+  { name:'Wingstop',                      cat:'QSR Drive-Thru' },
+  { name:'Mister Car Wash',               cat:'Car Wash' },
+  { name:"Soapy Joe's",                   cat:'Car Wash' },
+  { name:'Superstar Car Wash',            cat:'Car Wash' },
+  { name:'Quick Quack Car Wash',          cat:'Car Wash' },
+  { name:'Jiffy Lube',                    cat:'Oil Change' },
+  { name:'Valvoline Instant Oil Change',  cat:'Oil Change' },
+  { name:'Take 5 Oil Change',             cat:'Oil Change' },
+  { name:'EVgo',                          cat:'EV Charging' },
+  { name:'Electrify America',             cat:'EV Charging' },
+  { name:'Terawatt',                      cat:'EV Charging' },
+  { name:'Roav',                          cat:'EV Charging' },
+  { name:'Blink Charging',               cat:'EV Charging' },
+  { name:'7-Eleven',                      cat:'Gas / C-Store' },
+  { name:'AMPM',                          cat:'Gas / C-Store' },
+  { name:'Rocket',                        cat:'Gas / C-Store' },
+  { name:'Maverick',                      cat:'Gas / C-Store' },
+  { name:'Chevron',                       cat:'Gas / C-Store' },
+  { name:'Shell',                         cat:'Gas / C-Store' },
+  { name:'Circle K',                      cat:'Gas / C-Store' },
+  { name:'AutoZone',                      cat:'Auto Parts / Tire' },
+  { name:"O'Reilly Auto Parts",           cat:'Auto Parts / Tire' },
+  { name:'Discount Tire',                 cat:'Auto Parts / Tire' },
+];
+
+let voidMode = false;
+let voidData = null;
+let voidRunning = false;
+
+function openVoidModal() {
+  const existing = document.getElementById('subject-input').value.trim();
+  if (existing) document.getElementById('void-subject').value = existing;
+  var _rec=getRecentSubjects();
+  if(_rec.length&&!document.getElementById('void-subject').value){document.getElementById('void-subject').value=_rec[0];}
+  document.getElementById('void-modal').classList.add('open');
+  document.getElementById('void-progress-wrap').style.display = 'none';
+  document.getElementById('void-run-btn').disabled = false;
+  document.getElementById('void-run-btn').textContent = '🔍 Run Void Analysis';
+  document.getElementById('void-cancel-btn').textContent = 'Cancel';
+}
+
+function closeVoidModal() {
+  if (voidRunning) return; // don't close while running
+  document.getElementById('void-modal').classList.remove('open');
+}
+
+async function runVoid() {
+  const subjectAddr = document.getElementById('void-subject').value.trim();
+  const voidMi  = parseFloat(document.getElementById('void-threshold').value);
+  const nearMi  = parseFloat(document.getElementById('void-near-threshold').value);
+  if (!subjectAddr) { alert('Enter a subject site address.'); return; }
+
+  voidRunning = true;
+  document.getElementById('void-run-btn').disabled = true;
+  document.getElementById('void-run-btn').textContent = 'Running…';
+  document.getElementById('void-cancel-btn').textContent = 'Running…';
+  document.getElementById('void-progress-wrap').style.display = 'block';
+  setVoidProgress(0, 'Geocoding site…');
+
+  // 1. Geocode
+  const subjectCoords = await geocodeAddress(subjectAddr);
+  if (!subjectCoords) {
+    voidRunning = false;
+    alert('Could not geocode address.');
+    document.getElementById('void-run-btn').disabled = false;
+    document.getElementById('void-run-btn').textContent = '🔍 Run Void Analysis';
+    document.getElementById('void-cancel-btn').textContent = 'Cancel';
+    return;
+  }
+  document.getElementById('subject-input').value = subjectAddr;
+  setSubjectLocation(subjectCoords, subjectAddr);
+
+  const subjectLL = new google.maps.LatLng(subjectCoords);
+  const results = [];
+
+  // 2. For each tenant, find nearest location
+  for (let i = 0; i < VOID_TENANTS.length; i++) {
+    const tenant = VOID_TENANTS[i];
+    setVoidProgress(Math.round((i / VOID_TENANTS.length) * 85), `Searching: ${tenant.name}…`);
+
+    const rawResults = await new Promise(resolve => {
+      placesService.textSearch({
+        query: tenant.name,
+        location: subjectCoords,
+        radius: 80000, // 50 miles
+      }, (res, status) => resolve(status === 'OK' ? res : []));
+    });
+
+    if (!rawResults.length) {
+      results.push({ ...tenant, found: false, crowMiles: null, driveText: null, driveDur: null, address: null, coords: null, status: 'void' });
+      await sleep(80);
+      continue;
+    }
+
+    // Sort by crow-flies, take nearest
+    const nearest = rawResults
+      .map(p => ({
+        address: p.formatted_address || p.vicinity || p.name,
+        coords: { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() },
+        crowMeters: google.maps.geometry.spherical.computeDistanceBetween(subjectLL, p.geometry.location),
+      }))
+      .sort((a, b) => a.crowMeters - b.crowMeters)[0];
+
+    const crowMiles = (nearest.crowMeters / 1609.34);
+    const status = crowMiles > voidMi ? 'void' : crowMiles > nearMi ? 'near' : 'present';
+    results.push({ ...tenant, found: true, crowMiles, driveText: null, driveDur: null, address: nearest.address, coords: nearest.coords, status });
+    await sleep(80);
+  }
+
+  // 3. Drive times for voids + near (batch Distance Matrix)
+  setVoidProgress(88, 'Getting driving distances…');
+  const needDrive = results.filter(r => r.found && r.coords);
+  if (needDrive.length) {
+    // Batch in groups of 25 (DM limit)
+    const BATCH = 25;
+    for (let b = 0; b < needDrive.length; b += BATCH) {
+      const batch = needDrive.slice(b, b + BATCH);
+      const distResp = await new Promise(resolve => {
+        new google.maps.DistanceMatrixService().getDistanceMatrix({
+          origins: [subjectCoords],
+          destinations: batch.map(r => r.coords),
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.IMPERIAL,
+        }, (resp, status) => resolve(status === 'OK' ? resp : null));
+      });
+      batch.forEach((r, i) => {
+        const el = distResp?.rows?.[0]?.elements?.[i];
+        if (el?.status === 'OK') { r.driveText = el.distance.text; r.driveDur = el.duration.text; }
+      });
+    }
+  }
+
+  setVoidProgress(100, 'Complete!');
+  voidRunning = false;
+  voidMode = true;
+  voidData = { subject: subjectAddr, results, voidMi, nearMi };
+
+  document.getElementById('void-modal').classList.remove('open');
+  renderVoidPanel();
+  setStatus(`🔍 Void: <span style="color:#f87171;font-weight:700;">${results.filter(r=>r.status==='void').length} voids</span> · <span style="color:#fbbf24;font-weight:700;">${results.filter(r=>r.status==='near').length} near</span> · <span style="color:#34d399;font-weight:700;">${results.filter(r=>r.status==='present').length} present</span> within ${voidMi} mi of ${subjectAddr}`);
+}
+
+function setVoidProgress(pct, text) {
+  document.getElementById('void-progress-bar').style.width = pct + '%';
+  document.getElementById('void-progress-text').textContent = text;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function renderVoidPanel() {
+  if (!voidData) return;
+  const { subject, results, voidMi, nearMi } = voidData;
+
+  // Sort: voids first, then near, then present; within each group sort by distance
+  const statusOrder = { void:0, near:1, present:2 };
+  const sorted = [...results].sort((a,b) => {
+    const so = statusOrder[a.status] - statusOrder[b.status];
+    if (so !== 0) return so;
+    return (a.crowMiles ?? 999) - (b.crowMiles ?? 999);
+  });
+
+  // Panel header
+  document.getElementById('panel-header-icon').innerHTML = '🔍';
+  document.getElementById('panel-header-title').textContent = 'Void Analysis';
+  document.getElementById('retailer-count').textContent = results.length;
+  document.getElementById('panel').classList.add('panel-void-active');
+
+  const list = document.getElementById('retailer-list');
+  list.innerHTML = '';
+
+  // Subject card
+  const subEl = document.createElement('div');
+  subEl.className = 'pig-subject';
+  subEl.style.borderColor = '#059669';
+  subEl.innerHTML = `<div class="pig-eyebrow" style="color:#6ee7b7;">⭐ Subject Site</div><div class="pig-addr">${subject}</div><div style="font-size:10px;color:#6b7280;margin-top:4px;">Void >${voidMi}mi · Near >${nearMi}mi</div>`;
+  list.appendChild(subEl);
+
+  // Summary row
+  const sumEl = document.createElement('div');
+  sumEl.style.cssText = 'display:flex;gap:6px;padding:8px 8px 4px;flex-wrap:wrap;';
+  const voids = results.filter(r=>r.status==='void').length;
+  const nears = results.filter(r=>r.status==='near').length;
+  const pres  = results.filter(r=>r.status==='present').length;
+  sumEl.innerHTML = `<span class="void-badge void-red">🔴 ${voids} Void</span><span class="void-badge void-yellow">🟡 ${nears} Near</span><span class="void-badge void-green">🟢 ${pres} Present</span>`;
+  list.appendChild(sumEl);
+
+  // Category groups
+  let lastCat = null;
+  sorted.forEach(r => {
+    if (r.cat !== lastCat) {
+      const catEl = document.createElement('div');
+      catEl.style.cssText = 'font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;padding:8px 8px 2px;border-top:1px solid #374151;margin-top:4px;';
+      catEl.textContent = r.cat;
+      list.appendChild(catEl);
+      lastCat = r.cat;
+    }
+
+    const el = document.createElement('div');
+    el.className = 'void-item';
+    const badge = r.status === 'void'
+      ? `<span class="void-badge void-red">🔴 Void</span>`
+      : r.status === 'near'
+      ? `<span class="void-badge void-yellow">🟡 Near</span>`
+      : `<span class="void-badge void-green">🟢 ${r.crowMiles ? r.crowMiles.toFixed(1)+'mi' : ''}</span>`;
+
+    const distStr = r.found
+      ? `${r.driveText ? `🚗 ${r.driveText} (${r.driveDur})  ` : ''}🐦 ${r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '?'} crow-flies`
+      : '⚠️ Not found in area';
+    const addrStr = r.address || '';
+
+    el.innerHTML = `
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <div style="font-size:12px;font-weight:600;color:#e5e7eb;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</div>
+          ${badge}
+        </div>
+        ${addrStr ? `<div style="font-size:11px;color:#6b7280;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(addrStr)}">${escHtml(addrStr)}</div>` : ''}
+        <div class="void-dist">${distStr}</div>
+      </div>`;
+
+    if (r.coords) {
+      el.onclick = () => {
+        map.panTo(r.coords);
+        map.setZoom(14);
+      };
+    }
+    list.appendChild(el);
+  });
+
+  // Footer
+  document.getElementById('panel-footer').innerHTML = `
+    <button class="btn-gray" style="width:100%;font-size:11px;margin-bottom:8px;" onclick="exitVoidMode()">← Exit Void Mode</button>
+    <button style="width:100%;font-size:11px;padding:6px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:#374151;color:#d1d5db;" onclick="exportVoidCSV()">⬇ Export CSV</button>`;
+}
+
+function exitVoidMode() {
+  voidMode = false;
+  voidData = null;
+  document.getElementById('panel-header-icon').innerHTML = '';
+  document.getElementById('panel-header-title').textContent = 'Retailers on Map';
+  document.getElementById('panel').classList.remove('panel-void-active');
+  document.getElementById('panel-footer').innerHTML = `
+    <div class="footer-label"><span>Logo Size</span><span id="size-val">${48}px</span></div>
+    <input type="range" id="size-slider" min="24" max="96" value="${48}" oninput="bulkResize(this.value)"/>
+    <div class="footer-btns">
+      <button class="btn-gray" onclick="clearAll()">🗑 Clear All</button>
+      <button class="btn-gray" onclick="toggleLabels()">🏷 Labels: <span id="lbl-state">ON</span></button>
+    </div>`;
+  renderList();
+}
+
+function exportVoidCSV() {
+  if (!voidData) return;
+  const rows = [['Tenant','Category','Void Status','Crow Flies (mi)','Drive Distance','Drive Time','Nearest Location']];
+  voidData.results.forEach(r => rows.push([
+    r.name, r.cat, r.status,
+    r.crowMiles ? r.crowMiles.toFixed(2) : '',
+    r.driveText || '', r.driveDur || '',
+    r.address || 'Not Found'
+  ]));
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'void_analysis_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+
 document.getElementById('pigeon-subject').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('pigeon-tenant').focus(); });
 </script>
 
