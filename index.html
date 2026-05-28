@@ -86,9 +86,11 @@
     .void-item { display:flex; gap:9px; align-items:flex-start; padding:7px 8px; border-radius:6px; cursor:pointer; transition:background 0.15s; border-top:1px solid #1f2937; }
     .void-item:hover { background:#1f2937; }
     .void-badge { display:inline-flex; align-items:center; padding:2px 7px; border-radius:10px; font-size:10px; font-weight:700; flex-shrink:0; white-space:nowrap; }
-    .void-red    { background:rgba(239,68,68,.2);  color:#f87171; }
-    .void-yellow { background:rgba(251,191,36,.2); color:#fbbf24; }
-    .void-green  { background:rgba(52,211,153,.2); color:#34d399; }
+    .void-green  { background:rgba(52,211,153,.2); color:#34d399; }  /* True void - not found */
+    .void-blue   { background:rgba(59,130,246,.2);  color:#60a5fa; }  /* Far - >2 mi */
+    .void-orange { background:rgba(249,115,22,.2);  color:#fb923c; }  /* Close - 1-2 mi */
+    .void-red    { background:rgba(239,68,68,.2);   color:#f87171; }  /* Too close - <1 mi */
+    .void-purple { background:rgba(139,92,246,.2);  color:#a78bfa; }  /* Possible relocation */
     .void-cat { font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:0.4px; margin-top:1px; }
     .void-dist { font-size:11px; color:#9ca3af; display:flex; gap:8px; flex-wrap:wrap; margin-top:3px; }
     #void-progress-wrap { margin:10px 0 4px; display:none; }
@@ -385,37 +387,39 @@
 <div id="void-modal">
   <div class="void-modal-box">
     <div class="void-modal-head"><span style="font-size:26px;">🔍</span><h2>Void Analysis</h2></div>
-    <p class="void-modal-sub">Find the nearest location of each of your Top 40 pad tenants. Identifies true voids in the market around your site.</p>
+    <p class="void-modal-sub">Find the nearest location of each tenant in your void list. Identifies true voids, close competition, and relocation candidates around your site.</p>
     <div class="void-field">
       <label>Subject Site</label>
       <input type="text" id="void-subject" placeholder="6990 University Ave, La Mesa, CA"/>
     </div>
     <div class="void-field">
-      <label>Thresholds</label>
-      <div class="void-field-row">
-        <div class="void-range-wrap">
-          <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">🔴 Void if farther than</div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <input type="range" class="void-range" id="void-threshold" min="1" max="15" value="3" step="0.5" style="flex:1;" oninput="document.getElementById('void-threshold-val').textContent=this.value+' mi'"/>
-            <span id="void-threshold-val" class="void-range-val">3 mi</span>
-          </div>
+      <label>Distance Thresholds (crow flies)</label>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
+          <span style="font-size:11px;color:#9ca3af;flex:0 0 80px;">Red if &lt;</span>
+          <input type="range" class="void-range" id="void-red-threshold" min="0.25" max="3" value="1" step="0.25" style="flex:1;" oninput="document.getElementById('void-red-val').textContent=this.value+' mi'"/>
+          <span id="void-red-val" class="void-range-val" style="color:#f87171;">1 mi</span>
         </div>
-        <div class="void-range-wrap">
-          <div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">🟡 Near if farther than</div>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <input type="range" class="void-range" id="void-near-threshold" min="0.5" max="10" value="1.5" step="0.5" style="flex:1;" oninput="document.getElementById('void-near-val').textContent=this.value+' mi'"/>
-            <span id="void-near-val" class="void-range-val">1.5 mi</span>
-          </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:#f97316;flex-shrink:0;"></div>
+          <span style="font-size:11px;color:#9ca3af;flex:0 0 80px;">Orange if &lt;</span>
+          <input type="range" class="void-range" id="void-orange-threshold" min="0.5" max="8" value="2" step="0.25" style="flex:1;" oninput="document.getElementById('void-orange-val').textContent=this.value+' mi'"/>
+          <span id="void-orange-val" class="void-range-val" style="color:#fb923c;">2 mi</span>
         </div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px;">🟦 Blue = farther &nbsp;|&nbsp; 🟢 Green = not found (true void)</div>
       </div>
     </div>
     <div id="void-progress-wrap">
       <div id="void-progress-bg"><div id="void-progress-bar"></div></div>
       <div id="void-progress-text">Initializing...</div>
     </div>
-    <div class="void-modal-footer">
-      <button class="btn-gray" id="void-cancel-btn" onclick="closeVoidModal()">Cancel</button>
-      <button class="btn-run-void" id="void-run-btn" onclick="runVoid()">🔍 Run Void Analysis</button>
+    <div class="void-modal-footer" style="flex-direction:column;gap:6px;">
+      <div style="display:flex;gap:8px;width:100%;">
+        <button class="btn-gray" id="void-cancel-btn" onclick="closeVoidModal()" style="flex:1;">Cancel</button>
+        <button class="btn-run-void" id="void-run-btn" onclick="runVoid()" style="flex:2;">🔍 Run Void Analysis</button>
+      </div>
+      <button class="btn-gray" style="width:100%;font-size:11px;" onclick="openEditTenants()">✏️ Edit Tenant List</button>
     </div>
   </div>
 </div>
@@ -724,17 +728,21 @@ function setSubjectLocation(coords, displayName) {
   subjectLatLng = coords;
   if (subjectMarker) subjectMarker.setMap(null);
 
+  // Build a yellow address-label marker
+  const _addr = displayName ? displayName.split(',')[0].trim() : 'Subject Property';
+  const _textLen = Math.min(_addr.length, 28);
+  const _w = Math.max(100, _textLen * 7.5 + 20);
+  const _svgLabel = `<svg xmlns="http://www.w3.org/2000/svg" width="${_w}" height="38" viewBox="0 0 ${_w} 38">
+    <rect x="1" y="1" width="${_w-2}" height="26" rx="6" fill="#fbbf24" stroke="white" stroke-width="1.5"/>
+    <polygon points="${(_w/2)-7},27 ${_w/2},36 ${(_w/2)+7},27" fill="#fbbf24"/>
+    <text x="${_w/2}" y="18" text-anchor="middle" font-size="11" font-weight="700" font-family="Arial,Helvetica,sans-serif" fill="#1a1a1a">${_addr.length>28?_addr.slice(0,27)+'…':_addr}</text>
+  </svg>`;
   subjectMarker = new google.maps.Marker({
     position: coords, map, title: 'Subject Property', zIndex: 999,
     icon: {
-      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="38" height="48" viewBox="0 0 38 48">
-          <path d="M19 0C8.5 0 0 8.5 0 19c0 14.25 19 29 19 29S38 33.25 38 19C38 8.5 29.5 0 19 0z"
-                fill="#ef4444" stroke="white" stroke-width="2"/>
-          <text x="19" y="24" text-anchor="middle" font-size="16" fill="white">⭐</text>
-        </svg>`)}`,
-      scaledSize: new google.maps.Size(38, 48),
-      anchor: new google.maps.Point(19, 48),
+      url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(_svgLabel)}`,
+      scaledSize: new google.maps.Size(_w, 38),
+      anchor: new google.maps.Point(_w/2, 36),
     }
   });
 
@@ -1547,6 +1555,7 @@ function openReportBuilder() {
     tablePos: 'right',
     title: pigeonData.subject,
     subtitle: pigeonData.tenant + ' proximity analysis',
+    _voidMode: false,
   };
   rbMapCache = {};
   document.getElementById('report-builder').style.display = 'flex';
@@ -1638,7 +1647,9 @@ function updateRbButtons() {
 }
 
 function renderRbPreview() {
-  if (!pigeonData || !rbState) return;
+  if (!rbState) return;
+  if (rbState._voidMode && !voidData) return;
+  if (!rbState._voidMode && !pigeonData) return;
   const mapImg = rbMapCache[rbState.mapType] || '';
   const isLand = rbState.layout === 'landscape';
   const W = isLand ? 792 : 612;
@@ -1653,7 +1664,7 @@ function renderRbPreview() {
   preview.style.width = W+'px'; preview.style.height = H+'px';
   preview.style.transform = 'scale('+scale+')';
   preview.style.transformOrigin = 'top left';
-  preview.innerHTML = buildRbHTML(mapImg, W, H);
+  preview.innerHTML = rbState._voidMode ? buildVoidRbHTML(mapImg, W, H) : buildRbHTML(mapImg, W, H);
 }
 
 
@@ -1774,6 +1785,57 @@ function buildRbHTML(mapImg, W, H) {
   html+='<div style="font-size:6.5px;color:'+GR+';text-align:right;">Information from sources deemed reliable but not guaranteed.<br/>Atlas &middot; '+new Date().toLocaleDateString()+'</div></div>';
   return '<div style="position:relative;width:'+W+'px;height:'+H+'px;background:white;font-family:Arial,Helvetica,sans-serif;overflow:hidden;">'+html+'</div>';
 }
+function buildVoidRbHTML(mapImg, W, H) {
+  var TEAL='#00A39E',INK='#1A1F23',PAPER='#F7F5F1',PD='#EFEBE3',GR='#989898';
+  var HDR=56,FTR=48,tp=rbState.tablePos||'right';
+  var LEG_W=tp==='right'?230:0,MAP_W=W-LEG_W,CONT_H=H-HDR-FTR;
+  var MAP_H=tp==='bottom'?Math.round(CONT_H*0.58):CONT_H;
+  var html='';
+  // Header
+  html+='<div style="position:absolute;top:0;left:0;right:0;height:'+HDR+'px;background:'+PAPER+';border-bottom:3px solid '+TEAL+';display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-sizing:border-box;">';
+  html+='<img src="'+GENTZ_LOGO_B64+'" style="height:34px;display:block;" />';
+  html+='<div style="text-align:right;flex:1;padding-left:20px;"><div style="font-size:13px;font-weight:700;color:'+INK+';letter-spacing:-0.3px;line-height:1.2;">'+escHtml(rbState.title)+'</div>';
+  html+='<div style="font-size:8px;color:'+GR+';margin-top:3px;letter-spacing:0.3px;">'+escHtml(rbState.subtitle)+'</div></div></div>';
+  // Map
+  html+='<div style="position:absolute;top:'+HDR+'px;left:0;width:'+MAP_W+'px;height:'+MAP_H+'px;overflow:hidden;background:#1a2530;">';
+  var _d=rbMapDims[rbState.mapType]||{w:MAP_W,h:MAP_H};
+  var _s=Math.max(MAP_W/_d.w,MAP_H/_d.h),_iw=Math.round(_d.w*_s),_ih=Math.round(_d.h*_s);
+  var _ox=Math.round(-(_iw-MAP_W)/2),_oy=Math.round(-(_ih-MAP_H)/2);
+  if(mapImg){html+='<img src="'+mapImg+'" style="position:absolute;top:'+_oy+'px;left:'+_ox+'px;width:'+_iw+'px;height:'+_ih+'px;display:block;"/>';}
+  // Legend on map
+  if(tp==='overlay'){
+    html+='<div style="position:absolute;bottom:12px;right:12px;width:220px;background:rgba(17,24,39,0.94);border-radius:6px;overflow:hidden;border-top:3px solid '+TEAL+';max-height:'+(MAP_H-24)+'px;overflow-y:auto;">';
+    html+=buildVoidLegendTable('dark',220);
+    html+='</div>';
+  }
+  html+='</div>';
+  // Right column
+  if(tp==='right'){
+    html+='<div style="position:absolute;top:'+HDR+'px;left:'+MAP_W+'px;width:'+LEG_W+'px;height:'+CONT_H+'px;background:'+PAPER+';border-left:2.5px solid '+TEAL+';overflow:hidden;display:flex;flex-direction:column;">';
+    html+='<div style="flex:1;overflow:hidden;">';
+    html+=buildVoidLegendTable('light',LEG_W);
+    html+='</div></div>';
+  }
+  // Below map
+  if(tp==='bottom'){
+    var btTop=HDR+MAP_H,btH=CONT_H-MAP_H;
+    html+='<div style="position:absolute;top:'+btTop+'px;left:0;width:'+W+'px;height:'+btH+'px;overflow:hidden;background:white;">';
+    html+=buildVoidLegendTable('light',W);
+    html+='</div>';
+  }
+  // Color legend strip
+  html+='<div style="position:absolute;bottom:'+FTR+'px;left:0;width:'+MAP_W+'px;background:rgba(17,24,39,0.85);padding:5px 10px;display:flex;gap:12px;align-items:center;">';
+  [['#10b981','Void (not found)'],['#3b82f6','Far'],['#f97316','Close'],['#ef4444','Too Close'],['#8b5cf6','Relocation']].forEach(function([c,l]){
+    html+='<span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:'+c+';display:inline-block;"></span><span style="font-size:7px;color:#e5e7eb;">'+l+'</span></span>';
+  });
+  html+='</div>';
+  // Footer
+  html+='<div style="position:absolute;bottom:0;left:0;right:0;height:'+FTR+'px;background:'+PD+';border-top:2px solid '+TEAL+';display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;">';
+  html+='<div><span style="font-size:8px;font-weight:700;color:'+TEAL+';">GENTZ COMMERCIAL</span><span style="font-size:7.5px;color:#404040;margin-left:14px;">Chris Gentzkow &middot; 562-472-6936 &middot; chris@gentz.co &middot; gentz.co</span></div>';
+  html+='<div style="font-size:6.5px;color:'+GR+';text-align:right;">Information from sources deemed reliable but not guaranteed.<br/>Atlas &middot; '+new Date().toLocaleDateString()+'</div></div>';
+  return '<div style="position:relative;width:'+W+'px;height:'+H+'px;background:white;font-family:Arial,Helvetica,sans-serif;overflow:hidden;">'+html+'</div>';
+}
+
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 async function downloadRbPDF() {
@@ -1865,6 +1927,164 @@ const VOID_TENANTS = [
 let voidMode = false;
 let voidData = null;
 let voidRunning = false;
+let voidMarkers = [];
+
+// Get the full tenant list (base + any localStorage custom ones)
+function getVoidTenants() {
+  try {
+    const custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]');
+    return [...VOID_TENANTS, ...custom];
+  } catch(e) { return VOID_TENANTS; }
+}
+
+function clearVoidMarkers() {
+  voidMarkers.forEach(m => { try { m.setMap(null); } catch(e){} });
+  voidMarkers = [];
+}
+
+function getVoidColor(status) {
+  if (status === 'green') return '#10b981';
+  if (status === 'blue')  return '#3b82f6';
+  if (status === 'orange') return '#f97316';
+  if (status === 'red')   return '#ef4444';
+  if (status === 'purple') return '#8b5cf6';
+  return '#6b7280';
+}
+
+async function placeVoidMarkers() {
+  clearVoidMarkers();
+  if (!voidData) return;
+  for (const r of voidData.results) {
+    if (!r.coords) continue;
+    const effectiveStatus = r.relocation ? 'purple' : r.status;
+    const color = getVoidColor(effectiveStatus);
+    const initials = r.name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    
+    // Try to get logo URL
+    let logoUrl = null;
+    const savedLogo = await getLogoFromDB(r.name);
+    if (savedLogo) logoUrl = savedLogo;
+    else {
+      const domain = getDomain(r.name) || (r.name.toLowerCase().replace(/[^a-z0-9]/g,'') + '.com');
+      logoUrl = `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=64&format=png`;
+    }
+
+    // Create a marker with colored border + logo
+    const svgSize = 36;
+    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize+8}" viewBox="0 0 ${svgSize} ${svgSize+8}">
+      <rect x="1" y="1" width="${svgSize-2}" height="${svgSize-2}" rx="6" fill="white" stroke="${color}" stroke-width="3"/>
+      <text x="${svgSize/2}" y="${svgSize/2+4}" text-anchor="middle" font-size="13" font-weight="700" font-family="Arial" fill="${color}">${initials}</text>
+      <polygon points="${svgSize/2-5},${svgSize-1} ${svgSize/2},${svgSize+7} ${svgSize/2+5},${svgSize-1}" fill="${color}"/>
+    </svg>`;
+
+    const marker = new google.maps.Marker({
+      position: r.coords, map,
+      title: r.name + (r.crowMiles ? ` (${r.crowMiles.toFixed(1)} mi)` : ''),
+      zIndex: 200,
+      icon: {
+        url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgIcon)}`,
+        scaledSize: new google.maps.Size(svgSize, svgSize+8),
+        anchor: new google.maps.Point(svgSize/2, svgSize+8),
+      }
+    });
+    const iw = new google.maps.InfoWindow({
+      content: `<div style="color:#111;font-size:13px;"><strong>${r.name}</strong><br/><small>${r.address||'Not found'}</small>${r.crowMiles?`<br/><small>🐦 ${r.crowMiles.toFixed(1)} mi crow-flies</small>`:''}</div>`
+    });
+    marker.addListener('click', () => iw.open(map, marker));
+    voidMarkers.push(marker);
+  }
+}
+
+function toggleRelocation(tenantName) {
+  if (!voidData) return;
+  const r = voidData.results.find(x => x.name === tenantName);
+  if (r) {
+    r.relocation = !r.relocation;
+    renderVoidPanel();
+    placeVoidMarkers();
+  }
+}
+
+// ── Edit Tenants Modal ──────────────────────
+function openEditTenants() {
+  const existing = document.getElementById('edit-tenants-modal');
+  if (existing) existing.remove();
+  
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]'); } catch(e){}
+  
+  const modal = document.createElement('div');
+  modal.id = 'edit-tenants-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:5000;display:flex;align-items:center;justify-content:center;';
+  
+  const cats = [...new Set([...VOID_TENANTS, ...custom].map(t=>t.cat))].sort();
+  
+  modal.innerHTML = `
+    <div style="background:#1f2937;border-radius:14px;width:520px;max-height:85vh;display:flex;flex-direction:column;border:1px solid #374151;box-shadow:0 24px 64px rgba(0,0,0,.6);">
+      <div style="padding:18px 20px 12px;border-bottom:1px solid #374151;display:flex;align-items:center;justify-content:space-between;">
+        <div><h2 style="font-size:17px;font-weight:700;color:#f9fafb;margin:0;">✏️ Edit Tenant List</h2>
+        <p style="font-size:12px;color:#6b7280;margin:4px 0 0;">Base list: ${VOID_TENANTS.length} tenants · Custom: ${custom.length} added</p></div>
+        <button onclick="document.getElementById('edit-tenants-modal').remove()" style="background:#374151;border:1px solid #4b5563;color:#9ca3af;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;">✕ Close</button>
+      </div>
+      <div style="padding:14px 20px;border-bottom:1px solid #374151;flex-shrink:0;">
+        <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Add New Tenant</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="et-new-name" placeholder="Tenant name (e.g. Five Guys)" style="flex:2;min-width:140px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;"/>
+          <select id="et-new-cat" style="flex:1;min-width:120px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 8px;border-radius:6px;font-size:13px;outline:none;">
+            ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
+            <option value="__new__">+ New category…</option>
+          </select>
+          <button onclick="addCustomTenant()" style="background:#059669;color:white;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:600;">+ Add</button>
+        </div>
+        <input type="text" id="et-new-cat-custom" placeholder="Enter new category name" style="display:none;margin-top:8px;width:100%;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;"/>
+      </div>
+      <div id="et-custom-list" style="flex:1;overflow-y:auto;padding:10px 20px 14px;">
+        ${custom.length === 0 ? '<p style="color:#6b7280;font-size:12px;text-align:center;padding:20px 0;">No custom tenants yet.</p>' :
+          custom.map((t,i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1f2937;">
+            <div style="flex:1;font-size:12px;color:#e5e7eb;font-weight:600;">${t.name}</div>
+            <div style="font-size:10px;color:#6b7280;background:#374151;padding:2px 7px;border-radius:8px;">${t.cat}</div>
+            <button onclick="removeCustomTenant(${i})" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:2px 4px;" title="Remove">🗑</button>
+          </div>`).join('')}
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid #374151;flex-shrink:0;">
+        <p style="font-size:11px;color:#6b7280;margin:0;">Custom tenants are saved to this browser. Changes take effect on the next void analysis run.</p>
+      </div>
+    </div>`;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('et-new-cat').addEventListener('change', function() {
+    const custom = document.getElementById('et-new-cat-custom');
+    custom.style.display = this.value === '__new__' ? 'block' : 'none';
+  });
+}
+
+function addCustomTenant() {
+  const name = document.getElementById('et-new-name').value.trim();
+  if (!name) return;
+  let cat = document.getElementById('et-new-cat').value;
+  if (cat === '__new__') {
+    cat = document.getElementById('et-new-cat-custom').value.trim();
+    if (!cat) { alert('Enter a category name.'); return; }
+  }
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]'); } catch(e){}
+  if (custom.find(t => t.name.toLowerCase() === name.toLowerCase()) ||
+      VOID_TENANTS.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+    alert(name + ' is already in the list.'); return;
+  }
+  custom.push({ name, cat, custom: true });
+  localStorage.setItem('void_custom_tenants', JSON.stringify(custom));
+  openEditTenants(); // refresh
+}
+
+function removeCustomTenant(idx) {
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]'); } catch(e){}
+  custom.splice(idx, 1);
+  localStorage.setItem('void_custom_tenants', JSON.stringify(custom));
+  openEditTenants(); // refresh
+}
 
 function openVoidModal() {
   const existing = document.getElementById('subject-input').value.trim();
@@ -1885,8 +2105,8 @@ function closeVoidModal() {
 
 async function runVoid() {
   const subjectAddr = document.getElementById('void-subject').value.trim();
-  const voidMi  = parseFloat(document.getElementById('void-threshold').value);
-  const nearMi  = parseFloat(document.getElementById('void-near-threshold').value);
+  const redMi    = parseFloat(document.getElementById('void-red-threshold').value);
+  const orangeMi = parseFloat(document.getElementById('void-orange-threshold').value);
   if (!subjectAddr) { alert('Enter a subject site address.'); return; }
 
   voidRunning = true;
@@ -1911,11 +2131,12 @@ async function runVoid() {
 
   const subjectLL = new google.maps.LatLng(subjectCoords);
   const results = [];
+  const allTenants = getVoidTenants();
 
   // 2. For each tenant, find nearest location
-  for (let i = 0; i < VOID_TENANTS.length; i++) {
-    const tenant = VOID_TENANTS[i];
-    setVoidProgress(Math.round((i / VOID_TENANTS.length) * 85), `Searching: ${tenant.name}…`);
+  for (let i = 0; i < allTenants.length; i++) {
+    const tenant = allTenants[i];
+    setVoidProgress(Math.round((i / allTenants.length) * 85), `Searching: ${tenant.name}…`);
 
     const rawResults = await new Promise(resolve => {
       placesService.textSearch({
@@ -1926,7 +2147,7 @@ async function runVoid() {
     });
 
     if (!rawResults.length) {
-      results.push({ ...tenant, found: false, crowMiles: null, driveText: null, driveDur: null, address: null, coords: null, status: 'void' });
+      results.push({ ...tenant, found: false, crowMiles: null, driveText: null, driveDur: null, address: null, coords: null, status: 'green' });
       await sleep(80);
       continue;
     }
@@ -1941,8 +2162,8 @@ async function runVoid() {
       .sort((a, b) => a.crowMeters - b.crowMeters)[0];
 
     const crowMiles = (nearest.crowMeters / 1609.34);
-    const status = crowMiles > voidMi ? 'void' : crowMiles > nearMi ? 'near' : 'present';
-    results.push({ ...tenant, found: true, crowMiles, driveText: null, driveDur: null, address: nearest.address, coords: nearest.coords, status });
+    const status = crowMiles < redMi ? 'red' : crowMiles < orangeMi ? 'orange' : 'blue';
+    results.push({ ...tenant, found: true, crowMiles, driveText: null, driveDur: null, address: nearest.address, coords: nearest.coords, status, relocation: false });
     await sleep(80);
   }
 
@@ -1972,11 +2193,12 @@ async function runVoid() {
   setVoidProgress(100, 'Complete!');
   voidRunning = false;
   voidMode = true;
-  voidData = { subject: subjectAddr, results, voidMi, nearMi };
+  voidData = { subject: subjectAddr, results, redMi, orangeMi };
+  placeVoidMarkers();
 
   document.getElementById('void-modal').classList.remove('open');
   renderVoidPanel();
-  setStatus(`🔍 Void: <span style="color:#f87171;font-weight:700;">${results.filter(r=>r.status==='void').length} voids</span> · <span style="color:#fbbf24;font-weight:700;">${results.filter(r=>r.status==='near').length} near</span> · <span style="color:#34d399;font-weight:700;">${results.filter(r=>r.status==='present').length} present</span> within ${voidMi} mi of ${subjectAddr}`);
+  setStatus(`🔍 Void: <span style="color:#34d399;font-weight:700;">${results.filter(r=>r.status==='green').length} voids</span> · <span style="color:#60a5fa;font-weight:700;">${results.filter(r=>r.status==='blue').length} far</span> · <span style="color:#fb923c;font-weight:700;">${results.filter(r=>r.status==='orange').length} close</span> · <span style="color:#f87171;font-weight:700;">${results.filter(r=>r.status==='red').length} too close</span> for ${subjectAddr}`);
 }
 
 function setVoidProgress(pct, text) {
@@ -1990,10 +2212,12 @@ function renderVoidPanel() {
   if (!voidData) return;
   const { subject, results, voidMi, nearMi } = voidData;
 
-  // Sort: voids first, then near, then present; within each group sort by distance
-  const statusOrder = { void:0, near:1, present:2 };
+  // Sort: green(void) first, then blue, orange, red, purple; within each group sort by distance
+  const statusOrder = { green:0, blue:1, orange:2, red:3, purple:4 };
   const sorted = [...results].sort((a,b) => {
-    const so = statusOrder[a.status] - statusOrder[b.status];
+    const aKey = a.relocation ? 'purple' : a.status;
+    const bKey = b.relocation ? 'purple' : b.status;
+    const so = (statusOrder[aKey]??5) - (statusOrder[bKey]??5);
     if (so !== 0) return so;
     return (a.crowMiles ?? 999) - (b.crowMiles ?? 999);
   });
@@ -2011,16 +2235,18 @@ function renderVoidPanel() {
   const subEl = document.createElement('div');
   subEl.className = 'pig-subject';
   subEl.style.borderColor = '#059669';
-  subEl.innerHTML = `<div class="pig-eyebrow" style="color:#6ee7b7;">⭐ Subject Site</div><div class="pig-addr">${subject}</div><div style="font-size:10px;color:#6b7280;margin-top:4px;">Void >${voidMi}mi · Near >${nearMi}mi</div>`;
+  subEl.innerHTML = `<div class="pig-eyebrow" style="color:#6ee7b7;">⭐ Subject Site</div><div class="pig-addr">${subject}</div><div style="font-size:10px;color:#6b7280;margin-top:4px;">🟢 Void · 🔵 &gt;${orangeMi}mi · 🟠 &gt;${redMi}mi · 🔴 &lt;${redMi}mi · 🟣 Relocation</div>`;
   list.appendChild(subEl);
 
   // Summary row
   const sumEl = document.createElement('div');
-  sumEl.style.cssText = 'display:flex;gap:6px;padding:8px 8px 4px;flex-wrap:wrap;';
-  const voids = results.filter(r=>r.status==='void').length;
-  const nears = results.filter(r=>r.status==='near').length;
-  const pres  = results.filter(r=>r.status==='present').length;
-  sumEl.innerHTML = `<span class="void-badge void-red">🔴 ${voids} Void</span><span class="void-badge void-yellow">🟡 ${nears} Near</span><span class="void-badge void-green">🟢 ${pres} Present</span>`;
+  sumEl.style.cssText = 'display:flex;gap:4px;padding:8px 8px 4px;flex-wrap:wrap;';
+  const greens  = results.filter(r=>r.status==='green').length;
+  const blues   = results.filter(r=>r.status==='blue').length;
+  const oranges = results.filter(r=>r.status==='orange').length;
+  const reds    = results.filter(r=>r.status==='red').length;
+  const purples = results.filter(r=>r.relocation).length;
+  sumEl.innerHTML = `<span class="void-badge void-green">🟢 ${greens}</span><span class="void-badge void-blue">🔵 ${blues}</span><span class="void-badge void-orange">🟠 ${oranges}</span><span class="void-badge void-red">🔴 ${reds}</span>${purples?`<span class="void-badge void-purple">🟣 ${purples}</span>`:''}`;
   list.appendChild(sumEl);
 
   // Category groups
@@ -2036,11 +2262,16 @@ function renderVoidPanel() {
 
     const el = document.createElement('div');
     el.className = 'void-item';
-    const badge = r.status === 'void'
-      ? `<span class="void-badge void-red">🔴 Void</span>`
-      : r.status === 'near'
-      ? `<span class="void-badge void-yellow">🟡 Near</span>`
-      : `<span class="void-badge void-green">🟢 ${r.crowMiles ? r.crowMiles.toFixed(1)+'mi' : ''}</span>`;
+    const effectiveStatus = r.relocation ? 'purple' : r.status;
+    const badge = effectiveStatus === 'green'
+      ? `<span class="void-badge void-green">🟢 Void</span>`
+      : effectiveStatus === 'blue'
+      ? `<span class="void-badge void-blue">🔵 ${r.crowMiles ? r.crowMiles.toFixed(1)+'mi' : ''}</span>`
+      : effectiveStatus === 'orange'
+      ? `<span class="void-badge void-orange">🟠 ${r.crowMiles ? r.crowMiles.toFixed(1)+'mi' : ''}</span>`
+      : effectiveStatus === 'purple'
+      ? `<span class="void-badge void-purple">🟣 Relocate</span>`
+      : `<span class="void-badge void-red">🔴 ${r.crowMiles ? r.crowMiles.toFixed(1)+'mi' : ''}</span>`;
 
     const distStr = r.found
       ? `${r.driveText ? `🚗 ${r.driveText} (${r.driveDur})  ` : ''}🐦 ${r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '?'} crow-flies`
@@ -2052,29 +2283,33 @@ function renderVoidPanel() {
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
           <div style="font-size:12px;font-weight:600;color:#e5e7eb;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</div>
           ${badge}
+          <button title="Mark as possible relocation" onclick="event.stopPropagation();toggleRelocation('${r.name}')" style="width:20px;height:20px;background:${r.relocation?'rgba(139,92,246,0.3)':'transparent'};border:1px solid ${r.relocation?'#a78bfa':'#374151'};border-radius:4px;cursor:pointer;color:${r.relocation?'#a78bfa':'#4b5563'};font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;">↩</button>
         </div>
         ${addrStr ? `<div style="font-size:11px;color:#6b7280;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(addrStr)}">${escHtml(addrStr)}</div>` : ''}
         <div class="void-dist">${distStr}</div>
       </div>`;
 
     if (r.coords) {
-      el.onclick = () => {
+      el.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
         map.panTo(r.coords);
-        map.setZoom(14);
-      };
+        map.setZoom(15);
+      });
     }
     list.appendChild(el);
   });
 
   // Footer
   document.getElementById('panel-footer').innerHTML = `
-    <button class="btn-gray" style="width:100%;font-size:11px;margin-bottom:8px;" onclick="exitVoidMode()">← Exit Void Mode</button>
+    <button class="btn-gray" style="width:100%;font-size:11px;margin-bottom:6px;" onclick="exitVoidMode()">← Exit Void Mode</button>
+    <button style="width:100%;font-size:11px;padding:7px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:linear-gradient(135deg,#059669,#0d9488);color:white;margin-bottom:6px;" onclick="openVoidReportBuilder()">📄 Build Report</button>
     <button style="width:100%;font-size:11px;padding:6px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:#374151;color:#d1d5db;" onclick="exportVoidCSV()">⬇ Export CSV</button>`;
 }
 
 function exitVoidMode() {
   voidMode = false;
   voidData = null;
+  clearVoidMarkers();
   document.getElementById('panel-header-icon').innerHTML = '';
   document.getElementById('panel-header-title').textContent = 'Retailers on Map';
   document.getElementById('panel').classList.remove('panel-void-active');
@@ -2092,7 +2327,7 @@ function exportVoidCSV() {
   if (!voidData) return;
   const rows = [['Tenant','Category','Void Status','Crow Flies (mi)','Drive Distance','Drive Time','Nearest Location']];
   voidData.results.forEach(r => rows.push([
-    r.name, r.cat, r.status,
+    r.name, r.cat, r.relocation ? 'relocation' : r.status,
     r.crowMiles ? r.crowMiles.toFixed(2) : '',
     r.driveText || '', r.driveDur || '',
     r.address || 'Not Found'
@@ -2104,6 +2339,91 @@ function exportVoidCSV() {
   a.click();
 }
 
+
+// ════════════════════════════════════════════
+// VOID REPORT BUILDER
+// ════════════════════════════════════════════
+let voidRbState = null;
+let voidRbMapCache = {};
+let voidRbMapDims = {};
+
+function openVoidReportBuilder() {
+  if (!voidData) { alert('Run void analysis first.'); return; }
+  voidRbState = {
+    mapType: map.getMapTypeId() || 'hybrid',
+    layout: 'landscape',
+    title: voidData.subject,
+    subtitle: 'Void Analysis · ' + new Date().toLocaleDateString(),
+  };
+  voidRbMapCache = {};
+  voidRbMapDims = {};
+
+  // Reuse report-builder modal but set void mode
+  rbState = { ...voidRbState, tablePos: 'right', _voidMode: true };
+  rbMapCache = {};
+  document.getElementById('report-builder').style.display = 'flex';
+  document.getElementById('rb-title-input').value = voidRbState.title;
+  document.getElementById('rb-subtitle-input').value = voidRbState.subtitle;
+  updateRbButtons();
+  showRbLoading('Capturing map...');
+  rbCaptureCurrentMap().then(function() { hideRbLoading(); renderRbPreview(); });
+}
+
+function buildVoidLegendTable(theme, tableW) {
+  if (!voidData) return '';
+  const { results, redMi, orangeMi } = voidData;
+  const dark = theme === 'dark';
+  const bgH = '#1A1F23', textH = '#F7F5F1';
+  const bgR1 = dark ? 'rgba(255,255,255,0.06)' : '#FBFAF7', bgR2 = dark ? 'rgba(0,0,0,0.04)' : 'white';
+  const textC = dark ? '#e5e7eb' : '#1A1F23', textM = dark ? '#9ca3af' : '#7A7A7A';
+  const TEAL = '#00A39E';
+
+  // Status badge colors
+  const STATUS_COLOR = { green:'#10b981', blue:'#3b82f6', orange:'#f97316', red:'#ef4444', purple:'#8b5cf6' };
+  const STATUS_LABEL = { green:'Void', blue:`>${orangeMi}mi`, orange:`>${redMi}mi`, red:`<${redMi}mi`, purple:'Relocate' };
+
+  // Sort by cat then status
+  const statusOrder = { green:0, blue:1, orange:2, red:3, purple:4 };
+  const sorted = [...results].sort((a,b) => {
+    if (a.cat < b.cat) return -1; if (a.cat > b.cat) return 1;
+    const aKey = a.relocation ? 'purple' : a.status;
+    const bKey = b.relocation ? 'purple' : b.status;
+    return (statusOrder[aKey]??5) - (statusOrder[bKey]??5);
+  });
+
+  let html = '';
+  html += `<div style="padding:6px 8px;background:${dark?'rgba(30,58,95,0.95)':'#EFEBE3'};">`;
+  html += `<div style="font-size:6px;font-weight:700;color:${TEAL};text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Subject Site</div>`;
+  html += `<div style="font-size:8px;color:${dark?'#f9fafb':'#1A1F23'};font-weight:600;line-height:1.3;">${escHtml(voidData.subject)}</div>`;
+  html += '</div>';
+  html += `<table style="width:100%;border-collapse:collapse;">`;
+  html += `<thead><tr style="background:${bgH};">`;
+  html += `<th style="padding:3px 5px;text-align:left;font-size:6px;font-weight:700;color:${textH};letter-spacing:0.3px;">TENANT</th>`;
+  html += `<th style="width:44px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">STATUS</th>`;
+  html += `<th style="width:48px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">CROW-FLIES</th>`;
+  html += `<th style="width:56px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">DRIVE</th>`;
+  html += `</tr></thead><tbody>`;
+
+  let lastCat = null;
+  sorted.forEach((r, i) => {
+    if (r.cat !== lastCat) {
+      html += `<tr><td colspan="4" style="padding:4px 5px 2px;font-size:6px;font-weight:700;color:${TEAL};text-transform:uppercase;letter-spacing:0.4px;background:${dark?'rgba(0,163,158,0.1)':'#EAF7F7'};border-top:1px solid ${dark?'#374151':'#cce8e7'};">${r.cat}</td></tr>`;
+      lastCat = r.cat;
+    }
+    const bg = i % 2 === 0 ? bgR1 : bgR2;
+    const effectiveStatus = r.relocation ? 'purple' : r.status;
+    const sc = STATUS_COLOR[effectiveStatus] || '#6b7280';
+    const sl = STATUS_LABEL[effectiveStatus] || r.status;
+    html += `<tr style="background:${bg};">`;
+    html += `<td style="padding:3px 5px;font-size:7px;color:${textC};font-weight:600;">${escHtml(r.name)}</td>`;
+    html += `<td style="padding:3px 4px;text-align:center;"><span style="background:${sc}22;color:${sc};font-size:6px;font-weight:700;padding:1px 5px;border-radius:8px;">${sl}</span></td>`;
+    html += `<td style="padding:3px 4px;text-align:center;font-size:7px;color:${textC};">${r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '—'}</td>`;
+    html += `<td style="padding:3px 4px;text-align:center;font-size:7px;color:${textC};">${r.driveText||'—'}</td>`;
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
 
 document.getElementById('pigeon-subject').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('pigeon-tenant').focus(); });
 </script>
