@@ -1877,9 +1877,11 @@ function updateDrawStyle() {
   const color = document.getElementById('draw-color')?.value || '#fbbf24';
   const weight = parseFloat(document.getElementById('draw-weight')?.value || 3);
   if (drawingManager) {
-    drawingManager.set('polygonOptions',   { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
-    drawingManager.set('rectangleOptions', { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
-    drawingManager.set('polylineOptions',  { strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+    drawingManager.setOptions({
+      polygonOptions:   { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 },
+      rectangleOptions: { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 },
+      polylineOptions:  { strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 }
+    });
   }
   // Update ALL existing drawn shapes
   drawnShapes.forEach(s => {
@@ -2187,18 +2189,18 @@ function buildVoidRbHTML(mapImg, W, H) {
     html+='</div>';
   }
   html+='</div>';
-  // Right column
+  // Right column — page 1 shows only green + blue (void + far)
   if(tp==='right'){
     html+='<div style="position:absolute;top:'+HDR+'px;left:'+MAP_W+'px;width:'+LEG_W+'px;height:'+CONT_H+'px;background:'+PAPER+';border-left:2.5px solid '+TEAL+';overflow:hidden;display:flex;flex-direction:column;">';
     html+='<div style="flex:1;overflow:hidden;">';
-    html+=buildVoidLegendTable('light',LEG_W);
+    html+=buildVoidLegendTable('light',LEG_W,['green','blue']);
     html+='</div></div>';
   }
-  // Below map
+  // Below map — page 1 shows only green + blue
   if(tp==='bottom'){
     var btTop=HDR+MAP_H,btH=CONT_H-MAP_H;
     html+='<div style="position:absolute;top:'+btTop+'px;left:0;width:'+W+'px;height:'+btH+'px;overflow:hidden;background:white;">';
-    html+=buildVoidLegendTable('light',W);
+    html+=buildVoidLegendTable('light',W,['green','blue']);
     html+='</div>';
   }
   // Color legend strip
@@ -2231,6 +2233,21 @@ async function downloadRbPDF() {
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:isLand?'landscape':'portrait',unit:'pt',format:'letter'});
     doc.addImage(canvas.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,H,'','FAST');
+
+    // Void mode: add page 2 — full tenant table
+    if (rbState._voidMode && voidData) {
+      showRbLoading('Building page 2...');
+      const p2wrap=document.createElement('div');
+      p2wrap.style.cssText=`position:fixed;top:-9999px;left:-9999px;width:${W}px;height:${H}px;z-index:-1;`;
+      p2wrap.innerHTML=buildVoidPage2HTML(W,H);
+      document.body.appendChild(p2wrap);
+      await new Promise(r=>setTimeout(r,200));
+      const c2=await html2canvas(p2wrap.firstChild,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:10000});
+      document.body.removeChild(p2wrap);
+      doc.addPage();
+      doc.addImage(c2.toDataURL('image/jpeg',0.97),'JPEG',0,0,W,H,'','FAST');
+    }
+
     const fname=rbState.title.replace(/[^a-zA-Z0-9 ]/g,'').replace(/ +/g,'-').slice(0,40)+'-'+new Date().toISOString().slice(0,10)+'.pdf';
     doc.save(fname); hideRbLoading();
   } catch(err){hideRbLoading();alert('PDF error: '+err.message);console.error(err);}
@@ -2855,52 +2872,61 @@ function openVoidReportBuilder() {
   rbCaptureCurrentMap().then(function() { hideRbLoading(); renderRbPreview(); });
 }
 
-function buildVoidLegendTable(theme, tableW) {
+// filterStatuses: array like ['green','blue'] to show only those, or null for all
+function buildVoidLegendTable(theme, tableW, filterStatuses) {
   if (!voidData) return '';
   const { results, redMi, orangeMi } = voidData;
   const dark = theme === 'dark';
   const bgH = '#1A1F23', textH = '#F7F5F1';
   const bgR1 = dark ? 'rgba(255,255,255,0.06)' : '#FBFAF7', bgR2 = dark ? 'rgba(0,0,0,0.04)' : 'white';
-  const textC = dark ? '#e5e7eb' : '#1A1F23', textM = dark ? '#9ca3af' : '#7A7A7A';
+  const textC = dark ? '#e5e7eb' : '#1A1F23';
   const TEAL = '#00A39E';
-
-  // Status badge colors
   const STATUS_COLOR = { green:'#10b981', blue:'#3b82f6', orange:'#f97316', red:'#ef4444', purple:'#8b5cf6' };
   const STATUS_LABEL = { green:'Void', blue:`>${orangeMi}mi`, orange:`>${redMi}mi`, red:`<${redMi}mi`, purple:'Relocate' };
-
-  // Sort by cat then status
   const statusOrder = { green:0, blue:1, orange:2, red:3, purple:4 };
-  const sorted = [...results].sort((a,b) => {
+  let rows = [...results].sort((a,b) => {
     if (a.cat < b.cat) return -1; if (a.cat > b.cat) return 1;
     const aKey = a.relocation ? 'purple' : a.status;
     const bKey = b.relocation ? 'purple' : b.status;
     return (statusOrder[aKey]??5) - (statusOrder[bKey]??5);
   });
+  if (filterStatuses) {
+    rows = rows.filter(r => filterStatuses.includes(r.relocation ? 'purple' : r.status));
+  }
 
   let html = '';
   html += `<div style="padding:6px 8px;background:${dark?'rgba(30,58,95,0.95)':'#EFEBE3'};">`;
   html += `<div style="font-size:6px;font-weight:700;color:${TEAL};text-transform:uppercase;letter-spacing:0.4px;margin-bottom:2px;">Subject Site</div>`;
   html += `<div style="font-size:8px;color:${dark?'#f9fafb':'#1A1F23'};font-weight:600;line-height:1.3;">${escHtml(voidData.subject)}</div>`;
+  if (filterStatuses) {
+    const label = filterStatuses.includes('green') && filterStatuses.includes('blue') ? 'True Void + Far Tenants' : filterStatuses.map(s=>STATUS_LABEL[s]||s).join(', ');
+    html += `<div style="font-size:6px;color:${TEAL};margin-top:2px;">${label} · See page 2 for full analysis</div>`;
+  }
   html += '</div>';
   html += `<table style="width:100%;border-collapse:collapse;">`;
   html += `<thead><tr style="background:${bgH};">`;
+  html += `<th style="width:22px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">LOGO</th>`;
   html += `<th style="padding:3px 5px;text-align:left;font-size:6px;font-weight:700;color:${textH};letter-spacing:0.3px;">TENANT</th>`;
   html += `<th style="width:44px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">STATUS</th>`;
-  html += `<th style="width:48px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">CROW-FLIES</th>`;
-  html += `<th style="width:56px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">DRIVE</th>`;
+  html += `<th style="width:44px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">DIST</th>`;
+  html += `<th style="width:50px;padding:3px 4px;text-align:center;font-size:6px;font-weight:700;color:${textH};">DRIVE</th>`;
   html += `</tr></thead><tbody>`;
 
   let lastCat = null;
-  sorted.forEach((r, i) => {
+  rows.forEach((r, i) => {
     if (r.cat !== lastCat) {
-      html += `<tr><td colspan="4" style="padding:4px 5px 2px;font-size:6px;font-weight:700;color:${TEAL};text-transform:uppercase;letter-spacing:0.4px;background:${dark?'rgba(0,163,158,0.1)':'#EAF7F7'};border-top:1px solid ${dark?'#374151':'#cce8e7'};">${r.cat}</td></tr>`;
+      html += `<tr><td colspan="5" style="padding:4px 5px 2px;font-size:6px;font-weight:700;color:${TEAL};text-transform:uppercase;letter-spacing:0.4px;background:${dark?'rgba(0,163,158,0.1)':'#EAF7F7'};border-top:1px solid ${dark?'#374151':'#cce8e7'};">${escHtml(r.cat)}</td></tr>`;
       lastCat = r.cat;
     }
     const bg = i % 2 === 0 ? bgR1 : bgR2;
     const effectiveStatus = r.relocation ? 'purple' : r.status;
     const sc = STATUS_COLOR[effectiveStatus] || '#6b7280';
     const sl = STATUS_LABEL[effectiveStatus] || r.status;
+    const logoHtml = r.logoUrl
+      ? `<img src="${r.logoUrl}" style="width:18px;height:18px;object-fit:contain;display:block;margin:auto;border-radius:2px;" />`
+      : `<div style="width:18px;height:18px;border-radius:2px;background:${sc}33;display:flex;align-items:center;justify-content:center;font-size:5px;font-weight:700;color:${sc};margin:auto;">${escHtml(r.name.slice(0,2).toUpperCase())}</div>`;
     html += `<tr style="background:${bg};">`;
+    html += `<td style="padding:3px 4px;text-align:center;">${logoHtml}</td>`;
     html += `<td style="padding:3px 5px;font-size:7px;color:${textC};font-weight:600;">${escHtml(r.name)}</td>`;
     html += `<td style="padding:3px 4px;text-align:center;"><span style="background:${sc}22;color:${sc};font-size:6px;font-weight:700;padding:1px 5px;border-radius:8px;">${sl}</span></td>`;
     html += `<td style="padding:3px 4px;text-align:center;font-size:7px;color:${textC};">${r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '—'}</td>`;
@@ -2909,6 +2935,66 @@ function buildVoidLegendTable(theme, tableW) {
   });
   html += '</tbody></table>';
   return html;
+}
+
+// Page 2: full tenant table sorted cat → alpha with logos
+function buildVoidPage2HTML(W, H) {
+  if (!voidData) return '';
+  const { results, redMi, orangeMi } = voidData;
+  const TEAL='#00A39E', INK='#1A1F23', PAPER='#F7F5F1', PD='#EFEBE3', GR='#989898';
+  const HDR=56, FTR=48;
+  const STATUS_COLOR = { green:'#10b981', blue:'#3b82f6', orange:'#f97316', red:'#ef4444', purple:'#8b5cf6' };
+  const STATUS_LABEL = { green:'Void', blue:`>${orangeMi}mi`, orange:`>${redMi}mi`, red:`<${redMi}mi`, purple:'Relocate' };
+
+  const sorted = [...results].sort((a,b) => {
+    if (a.cat < b.cat) return -1; if (a.cat > b.cat) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = '';
+  // Header
+  html += `<div style="position:absolute;top:0;left:0;right:0;height:${HDR}px;background:${PAPER};border-bottom:3px solid ${TEAL};display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-sizing:border-box;">`;
+  html += `<img src="${GENTZ_LOGO_B64}" style="height:34px;display:block;" />`;
+  html += `<div style="text-align:right;flex:1;padding-left:20px;"><div style="font-size:13px;font-weight:700;color:${INK};letter-spacing:-0.3px;line-height:1.2;">${escHtml(rbState.title)}</div>`;
+  html += `<div style="font-size:8px;color:${GR};margin-top:3px;letter-spacing:0.3px;">Tenant Summary · Page 2</div></div></div>`;
+
+  // Table container
+  const CONT_H = H - HDR - FTR;
+  html += `<div style="position:absolute;top:${HDR}px;left:0;width:${W}px;height:${CONT_H}px;overflow:hidden;background:white;">`;
+  html += `<table style="width:100%;border-collapse:collapse;">`;
+  html += `<thead><tr style="background:${INK};">`;
+  html += `<th style="width:26px;padding:5px 4px;text-align:center;font-size:6px;font-weight:700;color:#F7F5F1;">LOGO</th>`;
+  html += `<th style="padding:5px 6px;text-align:left;font-size:6.5px;font-weight:700;color:#F7F5F1;letter-spacing:0.3px;">TENANT</th>`;
+  html += `<th style="width:90px;padding:5px 6px;text-align:left;font-size:6.5px;font-weight:700;color:#F7F5F1;">CATEGORY</th>`;
+  html += `<th style="width:54px;padding:5px 4px;text-align:center;font-size:6.5px;font-weight:700;color:#F7F5F1;">STATUS</th>`;
+  html += `<th style="width:52px;padding:5px 4px;text-align:center;font-size:6.5px;font-weight:700;color:#F7F5F1;">CROW-FLIES</th>`;
+  html += `<th style="width:60px;padding:5px 4px;text-align:center;font-size:6.5px;font-weight:700;color:#F7F5F1;">DRIVE</th>`;
+  html += `</tr></thead><tbody>`;
+
+  sorted.forEach((r, i) => {
+    const bg = i % 2 === 0 ? '#FBFAF7' : 'white';
+    const effectiveStatus = r.relocation ? 'purple' : r.status;
+    const sc = STATUS_COLOR[effectiveStatus] || '#6b7280';
+    const sl = STATUS_LABEL[effectiveStatus] || r.status;
+    const logoHtml = r.logoUrl
+      ? `<img src="${r.logoUrl}" style="width:20px;height:20px;object-fit:contain;display:block;margin:auto;border-radius:3px;" />`
+      : `<div style="width:20px;height:20px;border-radius:3px;background:${sc}33;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:${sc};margin:auto;">${escHtml(r.name.slice(0,2).toUpperCase())}</div>`;
+    html += `<tr style="background:${bg};">`;
+    html += `<td style="padding:4px;text-align:center;">${logoHtml}</td>`;
+    html += `<td style="padding:4px 6px;font-size:8px;color:${INK};font-weight:600;">${escHtml(r.name)}</td>`;
+    html += `<td style="padding:4px 6px;font-size:7px;color:#555;">${escHtml(r.cat||'')}</td>`;
+    html += `<td style="padding:4px;text-align:center;"><span style="background:${sc}22;color:${sc};font-size:6.5px;font-weight:700;padding:2px 6px;border-radius:8px;">${sl}</span></td>`;
+    html += `<td style="padding:4px;text-align:center;font-size:7.5px;color:${INK};">${r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '—'}</td>`;
+    html += `<td style="padding:4px;text-align:center;font-size:7.5px;color:${INK};">${r.driveText||'—'}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  // Footer
+  html += `<div style="position:absolute;bottom:0;left:0;right:0;height:${FTR}px;background:${PD};border-top:2px solid ${TEAL};display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;">`;
+  html += `<div><span style="font-size:8px;font-weight:700;color:${TEAL};">GENTZ COMMERCIAL</span><span style="font-size:7.5px;color:#404040;margin-left:14px;">Chris Gentzkow · 562-472-6936 · chris@gentz.co · gentz.co</span></div>`;
+  html += `<div style="font-size:6.5px;color:${GR};text-align:right;">Information from sources deemed reliable but not guaranteed.<br/>Atlas · ${new Date().toLocaleDateString()}</div></div>`;
+  return `<div style="position:relative;width:${W}px;height:${H}px;background:white;font-family:Arial,Helvetica,sans-serif;overflow:hidden;">${html}</div>`;
 }
 
 document.getElementById('pigeon-subject').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('pigeon-tenant').focus(); });
