@@ -2179,20 +2179,48 @@ async function placeVoidMarkers() {
     }
     onAdd() {
       const el = document.createElement('div');
-      el.style.cssText = 'position:absolute;z-index:200;cursor:pointer;';
+      el.style.cssText = 'position:absolute;z-index:200;cursor:move;';
       this.el = el;
       this._build();
+      // ── Drag support ──
+      let dragging = false, startXY = null, startLL = null;
+      el.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        e.stopPropagation(); e.preventDefault();
+        dragging = true; startXY = { x:e.clientX, y:e.clientY }; startLL = this.latlng;
+        map.setOptions({ draggable:false });
+        const onMove = (ev) => {
+          if (!dragging) return;
+          const proj = this.getProjection();
+          const sp = proj.fromLatLngToDivPixel(startLL);
+          const np = new google.maps.Point(sp.x + ev.clientX - startXY.x, sp.y + ev.clientY - startXY.y);
+          this.latlng = proj.fromDivPixelToLatLng(np);
+          this.r.coords = { lat: this.latlng.lat(), lng: this.latlng.lng() };
+          this.draw();
+        };
+        const onUp = () => {
+          dragging = false;
+          map.setOptions({ draggable:true });
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (this.iw) { this.iw.close(); this.iw = null; }
+        if (Math.abs(e.clientX - (startXY?.x||e.clientX)) > 4 || Math.abs(e.clientY - (startXY?.y||e.clientY)) > 4) return; // was a drag
+        if (this.iw) { this.iw.close(); this.iw = null; return; }
         const r = this.r;
         const distStr = r.crowMiles ? `<br/><small>🐦 ${r.crowMiles.toFixed(1)} mi crow-flies</small>` : '';
+        const safeName = r.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
         this.iw = new google.maps.InfoWindow({
-          content: `<div style="color:#111;font-size:13px;max-width:200px;"><strong>${r.name}</strong><br/><small>${r.address||'Not found'}</small>${distStr}<br/><small style="color:#3b82f6;cursor:pointer;" onclick="openVoidLogoFix('${r.name.replace(/'/g,"\\'")}')">🖼 Fix logo</small></div>`
+          content: `<div style="color:#111;font-size:13px;max-width:200px;"><strong>${r.name}</strong><br/><small>${r.address||'Not found'}</small>${distStr}<br/><small style="color:#3b82f6;cursor:pointer;" onclick="openVoidLogoFix('${safeName}')">🖼 Fix logo</small></div>`
         });
         this.iw.setPosition(this.latlng);
         this.iw.open(map);
-        // Scroll panel to matching row and flash it
+        // Scroll panel to row and flash it
         const panelItems = document.querySelectorAll('.void-item');
         for (const item of panelItems) {
           if (item.querySelector('div')?.textContent?.includes(r.name)) {
@@ -2570,9 +2598,11 @@ function renderVoidPanel() {
 
   // Footer
   document.getElementById('panel-footer').innerHTML = `
-    <button class="btn-gray" style="width:100%;font-size:11px;margin-bottom:6px;" onclick="exitVoidMode()">← Exit Void Mode</button>
-    <button style="width:100%;font-size:11px;padding:7px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:linear-gradient(135deg,#059669,#0d9488);color:white;margin-bottom:6px;" onclick="openVoidReportBuilder()">📄 Build Report</button>
-    <button style="width:100%;font-size:11px;padding:6px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:#374151;color:#d1d5db;" onclick="exportVoidCSV()">⬇ Export CSV</button>`;
+    <button style="width:100%;font-size:11px;padding:7px;border-radius:6px;border:none;cursor:pointer;font-weight:700;background:linear-gradient(135deg,#059669,#0d9488);color:white;margin-bottom:5px;" onclick="openVoidReportBuilder()">📄 Build Report</button>
+    <div style="display:flex;gap:5px;">
+      <button class="btn-gray" style="flex:1;font-size:11px;" onclick="exportVoidCSV()">⬇ CSV</button>
+      <button class="btn-gray" style="flex:1;font-size:11px;" onclick="exitVoidMode()">← Exit</button>
+    </div>`;
 
   // Update floating map legend
   const legendEl = document.getElementById('void-legend');
