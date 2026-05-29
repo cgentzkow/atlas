@@ -438,48 +438,62 @@
 <!-- ══ Void Modal ══ -->
 <div id="void-modal">
   <div class="void-modal-box">
-    <div class="void-modal-head"><span style="font-size:26px;">🔍</span><h2>Void Analysis</h2></div>
-    <p class="void-modal-sub">Find the nearest location of each tenant in your void list. Identifies true voids, close competition, and relocation candidates around your site.</p>
-    <div class="void-field">
-      <label>Subject Site</label>
-      <input type="text" id="void-subject" placeholder="6990 University Ave, La Mesa, CA"/>
+    <div style="padding:20px 28px 14px;flex-shrink:0;">
+      <div class="void-modal-head"><span style="font-size:24px;">🔍</span><h2>Void Analysis</h2></div>
+      <p class="void-modal-sub" style="margin-bottom:0;">Find all locations of each tenant within range. Identifies true voids, competition, and relocation candidates.</p>
     </div>
-    <div class="void-field">
-      <label>Distance Thresholds (crow flies)</label>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0;"></div>
-          <span style="font-size:11px;color:#9ca3af;flex:0 0 80px;">Red if &lt;</span>
-          <input type="range" class="void-range" id="void-red-threshold" min="0.25" max="3" value="1" step="0.25" style="flex:1;" oninput="document.getElementById('void-red-val').textContent=this.value+' mi'"/>
-          <span id="void-red-val" class="void-range-val" style="color:#f87171;">1 mi</span>
+    <div class="void-modal-scroll">
+      <div class="void-field">
+        <label>Property Address</label>
+        <input type="text" id="void-subject" placeholder="6990 University Ave, La Mesa, CA"/>
+      </div>
+      <div class="void-field" style="margin-bottom:14px;">
+        <label>Property Name <span style="font-size:10px;color:#6b7280;font-weight:400;">(auto-fills · used on report)</span></label>
+        <input type="text" id="void-propname" placeholder="e.g. La Mesa Village Center"/>
+      </div>
+      <div class="void-field">
+        <label style="margin-bottom:10px;display:block;">Distance Thresholds <span style="font-size:10px;color:#6b7280;font-weight:400;">(crow flies)</span></label>
+        <div class="void-slider-grid">
+          <div class="void-slider-label"><div class="void-slider-dot" style="background:#ef4444;"></div>Too Close &lt;</div>
+          <input type="range" class="void-range-red" id="void-red-threshold" min="0.25" max="5" value="1" step="0.25"
+            oninput="document.getElementById('void-red-val').textContent=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'')+' mi'"/>
+          <span id="void-red-val" class="void-range-val" style="color:#f87171;font-size:12px;">1 mi</span>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:12px;height:12px;border-radius:50%;background:#f97316;flex-shrink:0;"></div>
-          <span style="font-size:11px;color:#9ca3af;flex:0 0 80px;">Orange if &lt;</span>
-          <input type="range" class="void-range" id="void-orange-threshold" min="0.5" max="8" value="2" step="0.25" style="flex:1;" oninput="document.getElementById('void-orange-val').textContent=this.value+' mi'"/>
-          <span id="void-orange-val" class="void-range-val" style="color:#fb923c;">2 mi</span>
+        <div class="void-slider-grid">
+          <div class="void-slider-label"><div class="void-slider-dot" style="background:#f97316;"></div>Close &lt;</div>
+          <input type="range" class="void-range-orange" id="void-orange-threshold" min="0.25" max="5" value="2" step="0.25"
+            oninput="document.getElementById('void-orange-val').textContent=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'')+' mi'"/>
+          <span id="void-orange-val" class="void-range-val" style="color:#fb923c;font-size:12px;">2 mi</span>
         </div>
-        <div style="font-size:11px;color:#6b7280;margin-top:2px;">🟦 Blue = farther &nbsp;|&nbsp; 🟢 Green = not found (true void)</div>
+        <div class="void-slider-grid">
+          <div class="void-slider-label"><div class="void-slider-dot" style="background:#3b82f6;"></div>Far &lt;</div>
+          <input type="range" class="void-range-blue" id="void-blue-threshold" min="0.25" max="5" value="4" step="0.25"
+            oninput="document.getElementById('void-blue-val').textContent=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'')+' mi'"/>
+          <span id="void-blue-val" class="void-range-val" style="color:#60a5fa;font-size:12px;">4 mi</span>
+        </div>
+        <div style="font-size:10px;color:#6b7280;margin-top:4px;">🟢 Green = not found within Far range (true void)</div>
+      </div>
+      <div id="void-progress-wrap" style="margin:10px 0 4px;display:none;">
+        <div id="void-progress-bg"><div id="void-progress-bar"></div></div>
+        <div id="void-progress-text">Initializing...</div>
+      </div>
+      <div style="margin-bottom:2px;">
+        <label style="display:block;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">Tenant List</label>
+        <select id="void-list-select" style="width:100%;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;">
+          <option value="__builtin__">Default (Base List)</option>
+        </select>
       </div>
     </div>
-    <div id="void-progress-wrap">
-      <div id="void-progress-bg"><div id="void-progress-bar"></div></div>
-      <div id="void-progress-text">Initializing...</div>
-    </div>
-    <div class="void-field" id="void-list-field" style="margin-bottom:10px;">
-      <label>Tenant List</label>
-      <select id="void-list-select" style="width:100%;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;">
-        <option value="__builtin__">Default (Base List)</option>
-      </select>
-    </div>
-    <div class="void-modal-footer" style="flex-direction:column;gap:6px;">
-      <div style="display:flex;gap:8px;width:100%;">
-        <button class="btn-gray" id="void-cancel-btn" onclick="closeVoidModal()" style="flex:1;">Cancel</button>
-        <button class="btn-run-void" id="void-run-btn" onclick="runVoid()" style="flex:2;">🔍 Run Void Analysis</button>
-      </div>
-      <div style="display:flex;gap:6px;width:100%;">
-        <button class="btn-gray" style="flex:1;font-size:11px;" onclick="openEditTenants()">✏️ Edit List</button>
-        <button class="btn-green" style="flex:1;font-size:11px;" onclick="populateMapFromList()">🗺 Populate Map</button>
+    <div class="void-modal-footer-wrap">
+      <div class="void-modal-footer" style="flex-direction:column;gap:6px;">
+        <div style="display:flex;gap:8px;width:100%;">
+          <button class="btn-gray" id="void-cancel-btn" onclick="closeVoidModal()" style="flex:1;">Cancel</button>
+          <button class="btn-run-void" id="void-run-btn" onclick="runVoid()" style="flex:2;">🔍 Run Void Analysis</button>
+        </div>
+        <div style="display:flex;gap:6px;width:100%;">
+          <button class="btn-gray" style="flex:1;font-size:11px;" onclick="openEditTenants()">✏️ Edit List</button>
+          <button class="btn-green" style="flex:1;font-size:11px;" onclick="populateMapFromList()">🗺 Populate Map</button>
+        </div>
       </div>
     </div>
   </div>
