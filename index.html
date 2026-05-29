@@ -456,13 +456,13 @@
         <label style="margin-bottom:10px;display:block;">Distance Thresholds <span style="font-size:10px;color:#6b7280;font-weight:400;">(crow flies)</span></label>
         <div class="void-slider-grid">
           <div class="void-slider-label"><div class="void-slider-dot" style="background:#ef4444;"></div>Too Close &lt;</div>
-          <input type="range" class="void-range-red" id="void-red-threshold" min="0.25" max="5" value="1" step="0.25"
+          <input type="range" class="void-range-red" id="void-red-threshold" min="0.25" max="10" value="1" step="0.25"
             oninput="document.getElementById('void-red-val').textContent=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'')+' mi'"/>
           <span id="void-red-val" class="void-range-val" style="color:#f87171;font-size:12px;">1 mi</span>
         </div>
         <div class="void-slider-grid">
           <div class="void-slider-label"><div class="void-slider-dot" style="background:#f97316;"></div>Close &lt;</div>
-          <input type="range" class="void-range-orange" id="void-orange-threshold" min="0.25" max="5" value="2" step="0.25"
+          <input type="range" class="void-range-orange" id="void-orange-threshold" min="0.25" max="10" value="2" step="0.25"
             oninput="document.getElementById('void-orange-val').textContent=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'')+' mi'"/>
           <span id="void-orange-val" class="void-range-val" style="color:#fb923c;font-size:12px;">2 mi</span>
         </div>
@@ -2608,11 +2608,24 @@ async function loadBirdieTenants() {
 }
 
 async function etLookupCategory(name) {
+  // First: try Birdie Firebase roster_tenants
   const tenants = await loadBirdieTenants();
-  const match = tenants.find(t => t.name.toLowerCase() === name.toLowerCase())
-    || tenants.find(t => t.name.toLowerCase().includes(name.toLowerCase()) && name.length > 3)
-    || tenants.find(t => name.toLowerCase().includes(t.name.toLowerCase()) && t.name.length > 3);
-  return match?.category || null;
+  const nameLow = name.toLowerCase();
+  const match = tenants.find(t => t.name.toLowerCase() === nameLow)
+    || tenants.find(t => t.name.toLowerCase().includes(nameLow) && name.length > 3)
+    || tenants.find(t => nameLow.includes(t.name.toLowerCase()) && t.name.length > 3);
+  if (match?.category) return match.category;
+
+  // Fallback: check hardcoded BIRDIE_CATEGORY_GROUPS
+  const norm = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const nn = norm(name);
+  for (const [cat, list] of Object.entries(BIRDIE_CATEGORY_GROUPS)) {
+    if (list.some(t => {
+      const nt = norm(t);
+      return nt === nn || nt.includes(nn) || nn.includes(nt);
+    })) return cat;
+  }
+  return null;
 }
 
 async function etNameInput(val) {
@@ -2696,6 +2709,7 @@ function openEditTenants() {
             style="flex:2;min-width:140px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;"
             oninput="etNameInput(this.value)"/>
           <select id="et-new-cat" style="flex:1;min-width:130px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 8px;border-radius:6px;font-size:13px;outline:none;">
+            <option value="">— Select category —</option>
             ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
             ${categoryGroupNames.filter(c=>!cats.includes(c)).map(c=>`<option value="${c}">${c}</option>`).join('')}
             <option value="__new__">+ New category…</option>
@@ -2750,8 +2764,25 @@ function openEditTenants() {
     document.getElementById('et-new-cat-custom').style.display = this.value === '__new__' ? 'block' : 'none';
   });
   
-  // Pre-load Birdie tenants in background
-  loadBirdieTenants();
+  // Pre-load Birdie tenants + categories in background, then populate dropdown
+  (async () => {
+    const tenants = await loadBirdieTenants();
+    // Get all unique categories from Birdie roster
+    const birdieCategories = [...new Set(tenants.map(t => t.category).filter(Boolean))].sort();
+    const sel = document.getElementById('et-new-cat');
+    if (!sel || !birdieCategories.length) return;
+    // Merge: keep existing options, add any Birdie categories not already there
+    const existing = new Set([...sel.options].map(o => o.value));
+    birdieCategories.forEach(cat => {
+      if (!existing.has(cat) && cat !== '__new__' && cat !== '') {
+        const opt = document.createElement('option');
+        opt.value = cat; opt.textContent = cat;
+        // Insert before the "New category" option
+        const lastOpt = sel.querySelector('option[value="__new__"]');
+        sel.insertBefore(opt, lastOpt);
+      }
+    });
+  })();
 }
 
 function etShowTab(tab) {
