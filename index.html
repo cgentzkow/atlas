@@ -792,6 +792,25 @@ function initMap() {
 // ════════════════════════════════════════════
 // SUBJECT PROPERTY
 // ════════════════════════════════════════════
+// ── Parcel overlay (exact same service as Campo) ──────────────────────────
+const PARCEL_SERVICE_URL = 'https://gis-public.sandiegocounty.gov/arcgis/rest/services/Lots/MapServer/export';
+const PARCEL_DYNAMIC_LAYERS = encodeURIComponent(JSON.stringify([{
+  "id":0,"source":{"type":"mapLayer","mapLayerId":0},
+  "drawingInfo":{"renderer":{"type":"simple","symbol":{
+    "type":"esriSFS","style":"esriSFSNull",
+    "outline":{"type":"esriSLS","style":"esriSLSSolid","color":[255,235,59,255],"width":1.5}
+  }}}
+}]));
+
+function tile2mercBbox(x, y, z) {
+  const n = Math.pow(2, z);
+  const lonToMerc = lon => lon * 20037508.34 / 180;
+  const latToMerc = lat => Math.log(Math.tan((90+lat)*Math.PI/360)) / (Math.PI/180) * 20037508.34 / 180;
+  const tile2lng = x => x/n*360-180;
+  const tile2lat = y => { const r=Math.PI-2*Math.PI*y/n; return 180/Math.PI*Math.atan(0.5*(Math.exp(r)-Math.exp(-r))); };
+  return [lonToMerc(tile2lng(x)), latToMerc(tile2lat(y+1)), lonToMerc(tile2lng(x+1)), latToMerc(tile2lat(y))].join(',');
+}
+
 let parcelOverlay = null;
 let parcelOn = false;
 function toggleParcelOverlay() {
@@ -799,42 +818,26 @@ function toggleParcelOverlay() {
   const btn = document.getElementById('btn-parcel');
   if (parcelOn) {
     if (!parcelOverlay) {
-      // Try Regrid public parcel tiles (free, works without auth for display)
-      // Falls back to opening assessor site if tiles don't load
       parcelOverlay = new google.maps.ImageMapType({
-        getTileUrl: (coord, zoom) => {
-          if (zoom < 14) return null; // parcels only visible at street level
-          // SANDAG / SD County parcel WMS via tile endpoint
-          return `https://gis.sandag.org/sdgis/services/Boundary/SanDiegoCounty_Parcels/MapServer/WMSServer?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&BBOX=${tileToBBox(coord,zoom)}&SRS=EPSG:4326&WIDTH=256&HEIGHT=256&LAYERS=0&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
-        },
-        tileSize: new google.maps.Size(256, 256),
-        opacity: 0.8,
         name: 'Parcels',
+        tileSize: new google.maps.Size(256, 256),
+        maxZoom: 21,
+        minZoom: 14,
+        opacity: 1.0,
+        getTileUrl: (coord, zoom) => {
+          if (zoom < 14) return null;
+          const bbox = tile2mercBbox(coord.x, coord.y, zoom);
+          return PARCEL_SERVICE_URL + '?bbox=' + bbox + '&size=256,256&imageSR=3857&bboxSR=3857&format=png32&transparent=true&f=image&dynamicLayers=' + PARCEL_DYNAMIC_LAYERS;
+        }
       });
     }
     map.overlayMapTypes.push(parcelOverlay);
     if (btn) { btn.classList.add('btn-active'); btn.textContent = '🏛 Parcel ✓'; }
-    // Also open county assessor in new tab for parcel details
-    const addr = subjectAddr || document.getElementById('subject-input').value.trim();
-    if (addr) {
-      window.open('https://arcc-gis.sandiegocounty.gov/apps/parcel-search/?q=' + encodeURIComponent(addr), '_blank');
-    } else {
-      window.open('https://arcc-gis.sandiegocounty.gov/apps/parcel-search/', '_blank');
-    }
   } else {
     const idx = map.overlayMapTypes.getArray().indexOf(parcelOverlay);
     if (idx > -1) map.overlayMapTypes.removeAt(idx);
     if (btn) { btn.classList.remove('btn-active'); btn.textContent = '🏛 Parcel'; }
   }
-}
-// Convert tile coords to WMS BBOX
-function tileToBBox(coord, zoom) {
-  const n = Math.pow(2, zoom);
-  const west  = (coord.x / n * 360 - 180).toFixed(6);
-  const east  = ((coord.x + 1) / n * 360 - 180).toFixed(6);
-  const north = (Math.atan(Math.sinh(Math.PI * (1 - 2 * coord.y / n))) * 180 / Math.PI).toFixed(6);
-  const south = (Math.atan(Math.sinh(Math.PI * (1 - 2 * (coord.y + 1) / n))) * 180 / Math.PI).toFixed(6);
-  return `${west},${south},${east},${north}`;
 }
 
 function geocodeSubjectManual() {
