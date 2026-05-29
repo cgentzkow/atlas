@@ -266,7 +266,7 @@
     <input type="text" id="subject-input" placeholder="1234 Main St, San Diego, CA"/>
   </div>
   <button class="btn-blue" onclick="geocodeSubjectManual()">📍 Set Property</button>
-  <button class="btn-gray" onclick="openAssessorParcel()" title="Open county assessor parcel map for this property">🏛 Parcel</button>
+  <button id="btn-parcel" class="btn-gray" onclick="toggleParcelOverlay()" title="Toggle parcel boundaries on map">🏛 Parcel</button>
   <div class="sep"></div>
   <div class="ctrl-group">
     <span class="ctrl-label">Retailer Name</span>
@@ -304,12 +304,24 @@
   <button id="draw-rectangle" class="btn-gray" onclick="setDrawMode('rectangle')">▭ Rectangle</button>
   <button id="draw-polyline"  class="btn-gray" onclick="setDrawMode('polyline')">╱ Line</button>
   <button class="btn-gray btn-red" style="background:#374151;color:#f87171;border-color:#4b5563;" onclick="clearDrawings()">🗑 Clear Shapes</button>
+  <div class="sep"></div>
+  <span class="row-label">Style:</span>
+  <input type="color" id="draw-color" value="#fbbf24" title="Shape fill/stroke color" style="width:28px;height:26px;padding:2px;border:1px solid #4b5563;border-radius:4px;background:#374151;cursor:pointer;" oninput="updateDrawStyle()"/>
+  <input type="range" id="draw-weight" min="1" max="10" value="3" step="0.5" style="width:60px;accent-color:#fbbf24;" title="Stroke weight" oninput="updateDrawStyle();document.getElementById(\'draw-wt-val\').textContent=this.value"/>
+  <span id="draw-wt-val" style="font-size:11px;color:#9ca3af;min-width:18px;">3</span>
+  <input type="range" id="ring-opacity" min="10" max="100" value="100" step="5" style="width:60px;accent-color:#60a5fa;" title="Ring opacity" oninput="updateRingStyle();document.getElementById(\'ring-op-val\').textContent=this.value+'%'"/>
+  <span id="ring-op-val" style="font-size:11px;color:#9ca3af;min-width:28px;">100%</span>
 </div>
 
 <!-- ══ Map ══ -->
 <div id="map-wrap">
   <div id="loading"><div class="spinner"></div><span id="loading-msg">Loading...</span></div>
   <div id="map"></div>
+  <!-- Void Legend overlay -->
+  <div id="void-legend" style="display:none;position:absolute;bottom:32px;left:14px;background:rgba(17,24,39,0.92);border:1px solid #374151;border-radius:10px;padding:10px 14px;z-index:10;min-width:170px;backdrop-filter:blur(4px);">
+    <div style="font-size:10px;font-weight:700;color:#6ee7b7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;">🔍 Void Legend</div>
+    <div style="display:flex;flex-direction:column;gap:5px;" id="void-legend-rows"></div>
+  </div>
 
   <!-- Side panel -->
   <div id="panel">
@@ -532,6 +544,29 @@ const DOMAINS = {
   'staples':'staples.com','fedex':'fedex.com','ups store':'theupsstore.com',
   'post office':'usps.com','usps':'usps.com',
   'el pollo loco':'elpolloloco.com',
+  'better buzz coffee':'betterbuzzcoffee.com',
+  'black rock coffee bar':'blackrockcoffee.com','black rock coffee':'blackrockcoffee.com',
+  'dutch bros coffee':'dutchbros.com','dutch bros':'dutchbros.com',
+  '7 brew coffee':'7brew.com','7 brew':'7brew.com',
+  "raising cane's chicken fingers":'raisingcanes.com',
+  'the habit burger grill':'habitburger.com','habit burger':'habitburger.com',
+  'mister car wash':'mistercarwash.com',
+  "soapy joe's":'soapyjoes.com','soapy joes':'soapyjoes.com',
+  'superstar car wash':'superstarcarwash.com',
+  'quick quack car wash':'dontdryanddie.com','quick quack':'dontdryanddie.com',
+  'jiffy lube':'jiffylube.com',
+  'valvoline instant oil change':'valvoline.com','valvoline':'valvoline.com',
+  'take 5 oil change':'take5.com','take 5':'take5.com',
+  'evgo':'evgo.com',
+  'electrify america':'electrifyamerica.com',
+  'terawatt':'terawatt.com',
+  'roav':'roav.com',
+  'blink charging':'blinkcharging.com',
+  'ampm':'ampm.com','am pm':'ampm.com',
+  'rocket':'rocketstations.com',
+  'maverick':'maverik.com',
+  'discount tire':'discounttire.com',
+  'wingstop':'wingstop.com',
 };
 
 const BRAND_COLORS = [
@@ -714,12 +749,40 @@ function initMap() {
 // ════════════════════════════════════════════
 // SUBJECT PROPERTY
 // ════════════════════════════════════════════
-function openAssessorParcel() {
-  const addr = (subjectAddr || document.getElementById('subject-input').value || '').trim();
-  if (!addr) { alert('Set a subject property first.'); return; }
-  // Open San Diego County Assessor parcel viewer with address search
-  const encoded = encodeURIComponent(addr);
-  window.open('https://arcc-gis.sandiegocounty.gov/h5/index.html?search=' + encoded, '_blank');
+let parcelOverlay = null;
+let parcelOn = false;
+function toggleParcelOverlay() {
+  parcelOn = !parcelOn;
+  const btn = document.getElementById('btn-parcel');
+  if (parcelOn) {
+    if (!parcelOverlay) {
+      // SD County ArcGIS parcel tile layer
+      parcelOverlay = new google.maps.ImageMapType({
+        getTileUrl: (coord, zoom) =>
+          `https://gis.sdat.state.md.us/iMap/tiles/${zoom}/${coord.y}/${coord.x}`,
+        tileSize: new google.maps.Size(256, 256),
+        opacity: 0.7,
+        name: 'Parcels',
+        maxZoom: 22,
+      });
+      // Try SD County first; use a known-good ArcGIS tile endpoint
+      parcelOverlay = new google.maps.ImageMapType({
+        getTileUrl: (coord, zoom) => {
+          // Standard ArcGIS tile URL for SD County parcel layer
+          return `https://arcc-gis.sandiegocounty.gov/arcgis/rest/services/Parcels/MapServer/tile/${zoom}/${coord.y}/${coord.x}`;
+        },
+        tileSize: new google.maps.Size(256, 256),
+        opacity: 0.75,
+        name: 'Parcels',
+      });
+    }
+    map.overlayMapTypes.push(parcelOverlay);
+    if (btn) { btn.classList.add('btn-active'); btn.textContent = '🏛 Parcel ✓'; }
+  } else {
+    const idx = map.overlayMapTypes.getArray().indexOf(parcelOverlay);
+    if (idx > -1) map.overlayMapTypes.removeAt(idx);
+    if (btn) { btn.classList.remove('btn-active'); btn.textContent = '🏛 Parcel'; }
+  }
 }
 
 function geocodeSubjectManual() {
@@ -1501,6 +1564,92 @@ function handleLogoPaste(rid,e){
   }}
 }
 
+
+// ════════════════════════════════════════════
+// VOID LOGO FIX
+// ════════════════════════════════════════════
+let _vlfTenant = null;
+
+function openVoidLogoFix(tenantName) {
+  _vlfTenant = tenantName;
+  document.getElementById('void-logo-fix-modal')?.remove();
+  const m = document.createElement('div');
+  m.id = 'void-logo-fix-modal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:5000;display:flex;align-items:center;justify-content:center;';
+  m.innerHTML = `<div style="background:#1f2937;border-radius:12px;padding:24px;width:420px;border:1px solid #374151;box-shadow:0 24px 64px rgba(0,0,0,0.6);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:15px;font-weight:700;color:#f9fafb;">🖼 Fix Logo — ${tenantName}</span>
+      <button onclick="document.getElementById('void-logo-fix-modal').remove()" style="background:none;border:none;color:#6b7280;font-size:18px;cursor:pointer;">×</button>
+    </div>
+    <p style="font-size:12px;color:#9ca3af;margin-bottom:14px;line-height:1.5;">Paste a URL, upload a file, or paste a copied image (Cmd+V). Saved to logo library for all apps.</p>
+    <label style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px;">Paste Image URL</label>
+    <div style="display:flex;gap:8px;margin-bottom:11px;">
+      <input type="text" id="vlf-url" placeholder="Right-click image → Copy Image Address" style="flex:1;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:12px;outline:none;"/>
+      <button onclick="_applyVoidLogoUrl()" style="padding:7px 14px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Apply</button>
+    </div>
+    <label style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px;">Upload File</label>
+    <input type="file" id="vlf-file" accept="image/*" onchange="_applyVoidLogoFile()" style="font-size:12px;color:#d1d5db;width:100%;cursor:pointer;margin-bottom:11px;"/>
+    <label style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:5px;">Paste from Clipboard</label>
+    <button onclick="_applyVoidLogoClipboard()" style="padding:8px;background:#374151;color:#d1d5db;border:1px solid #4b5563;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;width:100%;">📋 Paste Image (Cmd+V)</button>
+    <div id="vlf-hint" style="font-size:11px;color:#6b7280;margin-top:5px;">Google Images: right-click any logo → Copy image, then click above.</div>
+  </div>`;
+  m.addEventListener('paste', e => _handleVoidLogoPaste(e));
+  document.body.appendChild(m);
+  setTimeout(() => document.getElementById('vlf-url')?.focus(), 80);
+}
+
+function _commitVoidLogo(dataUrl) {
+  const tenantName = _vlfTenant; if (!tenantName) return;
+  if (voidData) {
+    const r = voidData.results.find(x => x.name === tenantName);
+    if (r) { r._voidLogoLoaded = true; r._voidLogoUrl = dataUrl; }
+  }
+  saveLogoToDB(tenantName, dataUrl);
+  placeVoidMarkers();
+  renderVoidPanel();
+  document.getElementById('void-logo-fix-modal')?.remove();
+  setStatus('Logo updated for <span class="hi">' + tenantName + '</span>.');
+}
+function _applyVoidLogoUrl() {
+  const url = document.getElementById('vlf-url')?.value.trim(); if (!url) return;
+  _commitVoidLogo(url);
+}
+function _applyVoidLogoFile() {
+  const file = document.getElementById('vlf-file')?.files?.[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => _commitVoidLogo(e.target.result);
+  reader.readAsDataURL(file);
+}
+async function _applyVoidLogoClipboard() {
+  const hint = document.getElementById('vlf-hint');
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      for (const type of item.types) {
+        if (type.startsWith('image/')) {
+          const blob = await item.getType(type);
+          const burl = URL.createObjectURL(blob);
+          const img = new Image();
+          img.onload = () => { const c = document.createElement('canvas'); c.width=img.width; c.height=img.height; c.getContext('2d').drawImage(img,0,0); _commitVoidLogo(c.toDataURL('image/png')); };
+          img.src = burl; return;
+        }
+      }
+    }
+    if (hint) { hint.textContent = 'No image in clipboard. Right-click a logo → Copy image first.'; hint.style.color='#f87171'; }
+  } catch(e) { if (hint) { hint.textContent = 'Clipboard blocked. Use URL or Upload instead.'; hint.style.color='#f87171'; } }
+}
+function _handleVoidLogoPaste(e) {
+  const items = e.clipboardData?.items; if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = ev => _commitVoidLogo(ev.target.result);
+      reader.readAsDataURL(item.getAsFile()); return;
+    }
+  }
+}
+
+
 // ════════════════════════════════════════════
 // LOADING / STATUS
 // ════════════════════════════════════════════
@@ -1642,6 +1791,24 @@ function rbUpdateTitle() {
   rbState.title = document.getElementById('rb-title-input').value;
   rbState.subtitle = document.getElementById('rb-subtitle-input').value;
   renderRbPreview();
+}
+
+
+function updateDrawStyle() {
+  const color = document.getElementById('draw-color')?.value || '#fbbf24';
+  const weight = parseFloat(document.getElementById('draw-weight')?.value || 3);
+  if (!drawingManager) return;
+  drawingManager.set('polygonOptions',   { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+  drawingManager.set('rectangleOptions', { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+  drawingManager.set('polylineOptions',  { strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+  // Also update accent color of sliders
+  const wSlider = document.getElementById('draw-weight');
+  if (wSlider) wSlider.style.accentColor = color;
+}
+function updateRingStyle() {
+  const op = (parseFloat(document.getElementById('ring-opacity')?.value || 100)) / 100;
+  Object.values(mileCircles).forEach(c => { try { c.setOptions({ strokeOpacity: op }); } catch(e){} });
+  Object.values(driveCircles).forEach(c => { try { c.setOptions({ strokeOpacity: op, fillOpacity: op * 0.06 }); } catch(e){} });
 }
 
 function updateRbButtons() {
@@ -2033,7 +2200,7 @@ async function placeVoidMarkers() {
           if (!tryUrls.length) { resolve(); return; }
           const url = tryUrls.shift();
           const img = new Image();
-          img.crossOrigin = 'anonymous';
+          // No crossOrigin here — CORS headers block discovery; set it only on display <img>
           img.onload = () => {
             if (img.naturalWidth > 8 && img.naturalHeight > 8) {
               r._voidLogoLoaded = true; r._voidLogoUrl = url;
@@ -2253,10 +2420,9 @@ async function runVoid() {
   voidRunning = false;
   voidMode = true;
   voidData = { subject: subjectAddr, results, redMi, orangeMi };
-  placeVoidMarkers();
-
   document.getElementById('void-modal').classList.remove('open');
   renderVoidPanel();
+  placeVoidMarkers(); // async logo loading runs in background after panel shows
   setStatus(`🔍 Void: <span style="color:#34d399;font-weight:700;">${results.filter(r=>r.status==='green').length} voids</span> · <span style="color:#60a5fa;font-weight:700;">${results.filter(r=>r.status==='blue').length} far</span> · <span style="color:#fb923c;font-weight:700;">${results.filter(r=>r.status==='orange').length} close</span> · <span style="color:#f87171;font-weight:700;">${results.filter(r=>r.status==='red').length} too close</span> for ${subjectAddr}`);
 }
 
@@ -2269,7 +2435,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 function renderVoidPanel() {
   if (!voidData) return;
-  const { subject, results, voidMi, nearMi } = voidData;
+  const { subject, results, redMi, orangeMi } = voidData;
 
   // Sort: green(void) first, then blue, orange, red, purple; within each group sort by distance
   const statusOrder = { green:0, blue:1, orange:2, red:3, purple:4 };
@@ -2342,6 +2508,7 @@ function renderVoidPanel() {
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
           <div style="font-size:12px;font-weight:600;color:#e5e7eb;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</div>
           ${badge}
+          <button title="Fix logo" onclick="event.stopPropagation();openVoidLogoFix(this.dataset.n)" data-n="${escHtml(r.name)}" style="background:transparent;border:none;color:#4b5563;cursor:pointer;font-size:13px;padding:0 1px;flex-shrink:0;">🖼</button>
           <button title="Mark as possible relocation" onclick="event.stopPropagation();toggleRelocation('${r.name}')" style="width:20px;height:20px;background:${r.relocation?'rgba(139,92,246,0.3)':'transparent'};border:1px solid ${r.relocation?'#a78bfa':'#374151'};border-radius:4px;cursor:pointer;color:${r.relocation?'#a78bfa':'#4b5563'};font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;">↩</button>
         </div>
         ${addrStr ? `<div style="font-size:11px;color:#6b7280;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(addrStr)}">${escHtml(addrStr)}</div>` : ''}
@@ -2363,12 +2530,34 @@ function renderVoidPanel() {
     <button class="btn-gray" style="width:100%;font-size:11px;margin-bottom:6px;" onclick="exitVoidMode()">← Exit Void Mode</button>
     <button style="width:100%;font-size:11px;padding:7px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:linear-gradient(135deg,#059669,#0d9488);color:white;margin-bottom:6px;" onclick="openVoidReportBuilder()">📄 Build Report</button>
     <button style="width:100%;font-size:11px;padding:6px;border-radius:6px;border:none;cursor:pointer;font-weight:600;background:#374151;color:#d1d5db;" onclick="exportVoidCSV()">⬇ Export CSV</button>`;
+
+  // Update floating map legend
+  const legendEl = document.getElementById('void-legend');
+  const rowsEl   = document.getElementById('void-legend-rows');
+  if (legendEl && rowsEl) {
+    legendEl.style.display = 'block';
+    const rm = redMi || 1, om = orangeMi || 2;
+    rowsEl.innerHTML = [
+      ['#34d399','🟢 True Void','Not found in area'],
+      ['#60a5fa',`🔵 Far (>${om} mi)`,'Low competition'],
+      ['#fb923c',`🟠 Close (${rm}–${om} mi)`,'Nearby competitor'],
+      ['#f87171',`🔴 Too Close (<${rm} mi)`,'Direct competition'],
+      ['#a78bfa','🟣 Relocation','Manual flag'],
+    ].map(([c,label,sub]) =>
+      `<div style="display:flex;align-items:flex-start;gap:8px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${c};margin-top:2px;flex-shrink:0;"></div>
+        <div><div style="font-size:11px;font-weight:600;color:#e5e7eb;">${label}</div><div style="font-size:9px;color:#6b7280;">${sub}</div></div>
+      </div>`
+    ).join('');
+  }
 }
 
 function exitVoidMode() {
   voidMode = false;
   voidData = null;
   clearVoidMarkers();
+  const legendEl = document.getElementById('void-legend');
+  if (legendEl) legendEl.style.display = 'none';
   document.getElementById('panel-header-icon').innerHTML = '';
   document.getElementById('panel-header-title').textContent = 'Retailers on Map';
   document.getElementById('panel').classList.remove('panel-void-active');
