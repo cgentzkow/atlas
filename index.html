@@ -82,6 +82,7 @@
     input[type="range"].void-range-red    { accent-color: #ef4444; }
     input[type="range"].void-range-orange { accent-color: #f97316; }
     input[type="range"].void-range-blue   { accent-color: #3b82f6; }
+    input[type="range"].void-range-green  { accent-color: #10b981; }
     .void-modal-scroll { flex:1; overflow-y:auto; padding:24px 28px 16px; }
     .void-modal-footer-wrap { padding:0 28px 24px; flex-shrink:0; border-top:1px solid #374151; padding-top:14px; }
     .void-slider-grid { display:grid; grid-template-columns:80px 1fr 42px; gap:6px; align-items:center; margin-bottom:8px; }
@@ -467,13 +468,12 @@
         </div>
         <div class="void-slider-grid">
           <div class="void-slider-label"><div class="void-slider-dot" style="background:#3b82f6;"></div>Far &lt;</div>
-          <input type="range" class="void-range-blue" id="void-blue-threshold" min="0.25" max="5" value="3" step="0.25"
-            oninput="var v=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'');document.getElementById('void-blue-val').textContent=v+' mi';document.getElementById('void-green-val').textContent=v+' mi';"/>
+          <input type="range" class="void-range-blue" id="void-blue-threshold" min="0.25" max="10" value="3" step="0.25" oninput="voidSyncBlue(this.value)"/>
           <span id="void-blue-val" class="void-range-val" style="color:#60a5fa;font-size:12px;">3 mi</span>
         </div>
-        <div class="void-slider-grid" style="opacity:0.85;">
+        <div class="void-slider-grid">
           <div class="void-slider-label"><div class="void-slider-dot" style="background:#10b981;"></div>No Presence &gt;</div>
-          <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(to right,#10b981,#10b981);margin:auto 0;"></div>
+          <input type="range" class="void-range-green" id="void-green-threshold" min="0.25" max="10" value="3" step="0.25" oninput="voidSyncGreen(this.value)"/>
           <span id="void-green-val" class="void-range-val" style="color:#34d399;font-size:12px;">3 mi</span>
         </div>
       </div>
@@ -2399,8 +2399,12 @@ async function loadTenantLists() {
         opt.textContent = list.name + ' (' + list.tenants.length + ')';
         sel.appendChild(opt);
       });
-      // Auto-select the first list if available
-      if (_tenantLists.length > 0) sel.value = _tenantLists[0].id;
+      // Auto-select the first real list (not __builtin__)
+      if (_tenantLists.length > 0) {
+        sel.value = _tenantLists[0].id;
+        // Also update the "Default" option text to clarify it's the fallback
+        if (sel.options[0]) sel.options[0].textContent = '(Custom list — manual add only)';
+      }
     }
   } catch(e) { console.warn('Could not load tenant lists:', e); }
 }
@@ -2581,6 +2585,79 @@ async function placeVoidMarkers() {
 // toggleRelocation moved to index-based version below
 
 // ── Edit Tenants Modal ──────────────────────
+// ── Birdie tenant cache for category auto-detect ──
+let _birdieTenantsCache = null;
+async function loadBirdieTenants() {
+  if (_birdieTenantsCache) return _birdieTenantsCache;
+  try {
+    const KEY = 'AIzaSyDQqyogPUBnRoejtNdwfnKnEkwJO-ciA6Y';
+    const PROJECT = 'gentz-commercial-photo-map';
+    // Fetch up to 300 tenants from Birdie's roster_tenants collection
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/roster_tenants?key=${KEY}&pageSize=300`);
+    if (!r.ok) return [];
+    const d = await r.json();
+    _birdieTenantsCache = (d.documents||[]).map(doc => {
+      const f = doc.fields||{};
+      return {
+        name: f.name?.stringValue || '',
+        category: f.category?.stringValue || f.rltCategory?.stringValue || ''
+      };
+    }).filter(t => t.name);
+    return _birdieTenantsCache;
+  } catch(e) { return []; }
+}
+
+async function etLookupCategory(name) {
+  const tenants = await loadBirdieTenants();
+  const match = tenants.find(t => t.name.toLowerCase() === name.toLowerCase())
+    || tenants.find(t => t.name.toLowerCase().includes(name.toLowerCase()) && name.length > 3)
+    || tenants.find(t => name.toLowerCase().includes(t.name.toLowerCase()) && t.name.length > 3);
+  return match?.category || null;
+}
+
+async function etNameInput(val) {
+  const catSel = document.getElementById('et-new-cat');
+  const hint = document.getElementById('et-cat-hint');
+  if (!val.trim() || val.length < 3) { if(hint) hint.textContent=''; return; }
+  const cat = await etLookupCategory(val.trim());
+  if (cat && catSel) {
+    // Try to select matching option, or add it
+    let found = false;
+    for (let i = 0; i < catSel.options.length; i++) {
+      if (catSel.options[i].value.toLowerCase() === cat.toLowerCase()) {
+        catSel.value = catSel.options[i].value;
+        found = true; break;
+      }
+    }
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      catSel.insertBefore(opt, catSel.options[0]);
+      catSel.value = cat;
+    }
+    if (hint) hint.textContent = '✓ Category auto-detected from Birdie';
+  } else {
+    if (hint) hint.textContent = '';
+  }
+}
+
+// Birdie category groups for "Add by Category"
+const BIRDIE_CATEGORY_GROUPS = {
+  'Coffee': ['Starbucks','Better Buzz Coffee','Black Rock Coffee Bar','Dutch Bros Coffee','7 Brew Coffee','Philz Coffee','Peet's Coffee','The Coffee Bean & Tea Leaf'],
+  'QSR Drive-Thru': ['In-N-Out Burger','Chick-fil-A','Raising Cane's Chicken Fingers','El Pollo Loco','Jack in the Box','McDonald's','Wendy's','Del Taco','Taco Bell','Chipotle Mexican Grill','The Habit Burger Grill','Panda Express','Wingstop','Shake Shack','Five Guys'],
+  'Car Wash': ['Mister Car Wash','Soapy Joe's','Superstar Car Wash','Quick Quack Car Wash','LUV Car Wash','Magnolia Car Wash'],
+  'Oil Change': ['Jiffy Lube','Valvoline Instant Oil Change','Take 5 Oil Change','Firestone Complete Auto Care'],
+  'EV Charging': ['EVgo','Electrify America','Terawatt','Roav','Blink Charging','ChargePoint'],
+  'Gas / C-Store': ['7-Eleven','AMPM','Rocket','Maverick','Chevron','Shell','Circle K','Arco','Mobil'],
+  'Auto Parts / Tire': ['AutoZone','O'Reilly Auto Parts','Discount Tire','Pep Boys','Firestone'],
+  'Grocery': ['Kroger','Vons','Ralph's','Albertsons','Whole Foods','Trader Joe's','Sprouts','Stater Bros.','Smart & Final','Food 4 Less','Aldi','Grocery Outlet'],
+  'Drug Store': ['CVS','Walgreens','Rite Aid'],
+  'Dollar / Value': ['Dollar General','Dollar Tree','Family Dollar','Five Below','99 Cents Only'],
+  'Fast Casual': ['Panera Bread','Chipotle','Cava','Sweetgreen','Jersey Mike's','Firehouse Subs','Subway'],
+  'Pizza': ['Pizza Hut','Domino's','Little Caesars','Papa John's'],
+  'Banking': ['Chase','Wells Fargo','Bank of America','US Bank','TD Bank','Citibank'],
+};
+
 function openEditTenants() {
   const existing = document.getElementById('edit-tenants-modal');
   if (existing) existing.remove();
@@ -2592,47 +2669,139 @@ function openEditTenants() {
   modal.id = 'edit-tenants-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:5000;display:flex;align-items:center;justify-content:center;';
   
-  const cats = [...new Set([...VOID_TENANTS, ...custom].map(t=>t.cat))].sort();
+  const allTenants = [...VOID_TENANTS, ...custom];
+  const cats = [...new Set(allTenants.map(t=>t.cat))].sort();
+  const categoryGroupNames = Object.keys(BIRDIE_CATEGORY_GROUPS).sort();
   
   modal.innerHTML = `
-    <div style="background:#1f2937;border-radius:14px;width:520px;max-height:85vh;display:flex;flex-direction:column;border:1px solid #374151;box-shadow:0 24px 64px rgba(0,0,0,.6);">
-      <div style="padding:18px 20px 12px;border-bottom:1px solid #374151;display:flex;align-items:center;justify-content:space-between;">
+    <div style="background:#1f2937;border-radius:14px;width:560px;max-height:88vh;display:flex;flex-direction:column;border:1px solid #374151;box-shadow:0 24px 64px rgba(0,0,0,.6);">
+      <div style="padding:18px 20px 12px;border-bottom:1px solid #374151;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
         <div><h2 style="font-size:17px;font-weight:700;color:#f9fafb;margin:0;">✏️ Edit Tenant List</h2>
         <p style="font-size:12px;color:#6b7280;margin:4px 0 0;">Base list: ${VOID_TENANTS.length} tenants · Custom: ${custom.length} added</p></div>
         <button onclick="document.getElementById('edit-tenants-modal').remove()" style="background:#374151;border:1px solid #4b5563;color:#9ca3af;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;">✕ Close</button>
       </div>
-      <div style="padding:14px 20px;border-bottom:1px solid #374151;flex-shrink:0;">
+      
+      <!-- Tab bar -->
+      <div style="display:flex;border-bottom:1px solid #374151;flex-shrink:0;">
+        <button id="et-tab-single" onclick="etShowTab('single')" style="flex:1;padding:10px;background:#111827;border:none;border-bottom:2px solid #059669;color:#f9fafb;font-size:12px;font-weight:600;cursor:pointer;">➕ Add Tenant</button>
+        <button id="et-tab-cat" onclick="etShowTab('cat')" style="flex:1;padding:10px;background:#1f2937;border:none;border-bottom:2px solid transparent;color:#9ca3af;font-size:12px;font-weight:600;cursor:pointer;">📂 Add by Category</button>
+        <button id="et-tab-list" onclick="etShowTab('list')" style="flex:1;padding:10px;background:#1f2937;border:none;border-bottom:2px solid transparent;color:#9ca3af;font-size:12px;font-weight:600;cursor:pointer;">📋 Custom List (${custom.length})</button>
+      </div>
+      
+      <!-- Tab: Add single tenant -->
+      <div id="et-panel-single" style="padding:14px 20px;border-bottom:1px solid #374151;flex-shrink:0;">
         <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Add New Tenant</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="text" id="et-new-name" placeholder="Tenant name (e.g. Five Guys)" style="flex:2;min-width:140px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;"/>
-          <select id="et-new-cat" style="flex:1;min-width:120px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 8px;border-radius:6px;font-size:13px;outline:none;">
+          <input type="text" id="et-new-name" placeholder="Tenant name (e.g. Five Guys)" 
+            style="flex:2;min-width:140px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;"
+            oninput="etNameInput(this.value)"/>
+          <select id="et-new-cat" style="flex:1;min-width:130px;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 8px;border-radius:6px;font-size:13px;outline:none;">
             ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
+            ${categoryGroupNames.filter(c=>!cats.includes(c)).map(c=>`<option value="${c}">${c}</option>`).join('')}
             <option value="__new__">+ New category…</option>
           </select>
           <button onclick="addCustomTenant()" style="background:#059669;color:white;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:12px;font-weight:600;">+ Add</button>
         </div>
+        <div id="et-cat-hint" style="font-size:10px;color:#34d399;margin-top:5px;min-height:14px;"></div>
         <input type="text" id="et-new-cat-custom" placeholder="Enter new category name" style="display:none;margin-top:8px;width:100%;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;"/>
       </div>
-      <div id="et-custom-list" style="flex:1;overflow-y:auto;padding:10px 20px 14px;">
-        ${custom.length === 0 ? '<p style="color:#6b7280;font-size:12px;text-align:center;padding:20px 0;">No custom tenants yet.</p>' :
+      
+      <!-- Tab: Add by Category -->
+      <div id="et-panel-cat" style="display:none;padding:14px 20px;flex:1;overflow-y:auto;">
+        <div style="font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Click a category to add all its tenants</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${categoryGroupNames.map(cat => {
+            const tenants = BIRDIE_CATEGORY_GROUPS[cat];
+            const alreadyInList = allTenants.filter(t => t.cat === cat).length;
+            return `<div style="border:1px solid #374151;border-radius:8px;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#111827;cursor:pointer;" onclick="etToggleCatExpand('${cat}')">
+                <div style="flex:1;font-size:13px;font-weight:600;color:#f9fafb;">${cat}</div>
+                <span style="font-size:10px;color:#6b7280;">${tenants.length} tenants${alreadyInList?` · ${alreadyInList} in list`:''}</span>
+                <button onclick="event.stopPropagation();addCategoryToList('${cat}')" style="padding:4px 12px;background:#059669;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">Add All</button>
+              </div>
+              <div id="et-cat-expand-${cat.replace(/[^a-z0-9]/gi,'_')}" style="display:none;padding:8px 12px;background:#1a2535;">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                  ${tenants.map(t => `<span style="background:#374151;color:#d1d5db;padding:2px 8px;border-radius:10px;font-size:11px;cursor:pointer;" onclick="etAddSingleFromCat('${t.replace(/'/g,"\'")}','${cat}')" title="Add just this tenant">+ ${t}</span>`).join('')}
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      
+      <!-- Tab: Custom list -->
+      <div id="et-panel-list" style="display:none;flex:1;overflow-y:auto;padding:10px 20px 14px;">
+        ${custom.length === 0 ? '<p style="color:#6b7280;font-size:12px;text-align:center;padding:20px 0;">No custom tenants yet. Use "Add Tenant" or "Add by Category".</p>' :
           custom.map((t,i) => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1f2937;">
             <div style="flex:1;font-size:12px;color:#e5e7eb;font-weight:600;">${t.name}</div>
             <div style="font-size:10px;color:#6b7280;background:#374151;padding:2px 7px;border-radius:8px;">${t.cat}</div>
-            <button onclick="removeCustomTenant(${i})" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:2px 4px;" title="Remove">🗑</button>
+            <button onclick="removeCustomTenant(${i})" style="background:transparent;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:2px 4px;">🗑</button>
           </div>`).join('')}
       </div>
-      <div style="padding:12px 20px;border-top:1px solid #374151;flex-shrink:0;">
-        <p style="font-size:11px;color:#6b7280;margin:0;">Custom tenants are saved to this browser. Changes take effect on the next void analysis run.</p>
+      
+      <div style="padding:10px 20px;border-top:1px solid #374151;flex-shrink:0;">
+        <p style="font-size:11px;color:#6b7280;margin:0;">Custom tenants are browser-local. To save permanently, use a named list in the dropdown.</p>
       </div>
     </div>`;
   
   document.body.appendChild(modal);
   
   document.getElementById('et-new-cat').addEventListener('change', function() {
-    const custom = document.getElementById('et-new-cat-custom');
-    custom.style.display = this.value === '__new__' ? 'block' : 'none';
+    document.getElementById('et-new-cat-custom').style.display = this.value === '__new__' ? 'block' : 'none';
+  });
+  
+  // Pre-load Birdie tenants in background
+  loadBirdieTenants();
+}
+
+function etShowTab(tab) {
+  ['single','cat','list'].forEach(t => {
+    const panel = document.getElementById('et-panel-'+t);
+    const btn = document.getElementById('et-tab-'+t);
+    if (panel) panel.style.display = t === tab ? (t === 'single' ? 'block' : 'flex') : 'none';
+    if (t === 'cat' && t === tab) panel.style.display = 'block';
+    if (btn) {
+      btn.style.background = t === tab ? '#111827' : '#1f2937';
+      btn.style.borderBottom = t === tab ? '2px solid #059669' : '2px solid transparent';
+      btn.style.color = t === tab ? '#f9fafb' : '#9ca3af';
+    }
   });
 }
+
+function etToggleCatExpand(cat) {
+  const id = 'et-cat-expand-' + cat.replace(/[^a-z0-9]/gi,'_');
+  const el = document.getElementById(id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function addCategoryToList(cat) {
+  const tenants = BIRDIE_CATEGORY_GROUPS[cat];
+  if (!tenants) return;
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]'); } catch(e){}
+  const allNames = new Set([...VOID_TENANTS, ...custom].map(t => t.name.toLowerCase()));
+  let added = 0;
+  tenants.forEach(name => {
+    if (!allNames.has(name.toLowerCase())) {
+      custom.push({ name, cat, custom: true });
+      added++;
+    }
+  });
+  localStorage.setItem('void_custom_tenants', JSON.stringify(custom));
+  if (added > 0) { openEditTenants(); setTimeout(() => etShowTab('list'), 50); }
+  else { alert('All ' + cat + ' tenants are already in the list.'); }
+}
+
+function etAddSingleFromCat(name, cat) {
+  let custom = [];
+  try { custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]'); } catch(e){}
+  const allNames = new Set([...VOID_TENANTS, ...custom].map(t => t.name.toLowerCase()));
+  if (allNames.has(name.toLowerCase())) { alert(name + ' is already in the list.'); return; }
+  custom.push({ name, cat, custom: true });
+  localStorage.setItem('void_custom_tenants', JSON.stringify(custom));
+  openEditTenants(); setTimeout(() => etShowTab('list'), 50);
+}
+
 
 function addCustomTenant() {
   const name = document.getElementById('et-new-name').value.trim();
@@ -2661,11 +2830,32 @@ function removeCustomTenant(idx) {
   openEditTenants(); // refresh
 }
 
+// Slider sync: keep blue <= green
+function voidSyncBlue(val) {
+  const v = parseFloat(val);
+  const fmt = v.toFixed(2).replace(/\.?0+$/,'') + ' mi';
+  document.getElementById('void-blue-val').textContent = fmt;
+  const g = document.getElementById('void-green-threshold');
+  if (g && parseFloat(g.value) < v) {
+    g.value = v;
+    document.getElementById('void-green-val').textContent = fmt;
+  }
+}
+function voidSyncGreen(val) {
+  const v = parseFloat(val);
+  const fmt = v.toFixed(2).replace(/\.?0+$/,'') + ' mi';
+  document.getElementById('void-green-val').textContent = fmt;
+  const b = document.getElementById('void-blue-threshold');
+  if (b && parseFloat(b.value) > v) {
+    b.value = v;
+    document.getElementById('void-blue-val').textContent = fmt;
+  }
+}
+
 function openVoidModal() {
   const existing = document.getElementById('subject-input').value.trim();
   if (existing) {
     document.getElementById('void-subject').value = existing;
-    // Auto-fill property name from address (street number + street name)
     const pn = document.getElementById('void-propname');
     if (pn && !pn.value) {
       const parts = existing.split(',');
@@ -2673,6 +2863,8 @@ function openVoidModal() {
     }
   }
   document.getElementById('void-progress-wrap').style.display='none';
+  // Always refresh list dropdown on open
+  loadTenantLists();
   var _rec=getRecentSubjects();
   if(_rec.length&&!document.getElementById('void-subject').value){document.getElementById('void-subject').value=_rec[0];}
   document.getElementById('void-modal').classList.add('open');
@@ -2712,7 +2904,8 @@ async function runVoid() {
   const propertyName = (document.getElementById('void-propname')?.value || '').trim() || subjectAddr.split(',')[0].trim();
   const redMi    = parseFloat(document.getElementById('void-red-threshold').value);
   const orangeMi = parseFloat(document.getElementById('void-orange-threshold').value);
-  const blueMi   = parseFloat(document.getElementById('void-blue-threshold')?.value || '4');
+  const blueMi   = parseFloat(document.getElementById('void-blue-threshold')?.value || '3');
+  const greenMi  = parseFloat(document.getElementById('void-green-threshold')?.value || blueMi.toString());
   if (!subjectAddr) { alert('Enter a subject site address.'); return; }
 
   voidRunning = true;
@@ -2738,7 +2931,7 @@ async function runVoid() {
   const subjectLL = new google.maps.LatLng(subjectCoords);
   const results = [];
   const allTenants = getVoidTenants();
-  const searchRadiusM = Math.round(blueMi * 1609.34 + 3000); // buffer
+  const searchRadiusM = Math.round(greenMi * 1609.34 + 3000); // buffer
 
   // 2. For each tenant, find ALL locations within blueMi
   for (let i = 0; i < allTenants.length; i++) {
@@ -2762,7 +2955,7 @@ async function runVoid() {
         crowMeters: google.maps.geometry.spherical.computeDistanceBetween(subjectLL, p.geometry.location),
         placeName: p.name,
       }))
-      .filter(p => p.crowMeters / 1609.34 <= blueMi)
+      .filter(p => p.crowMeters / 1609.34 <= greenMi)
       .sort((a, b) => a.crowMeters - b.crowMeters);
 
     if (!inRange.length) {
@@ -2805,7 +2998,7 @@ async function runVoid() {
   voidRunning = false;
   voidMode = true;
   document.getElementById('void-progress-wrap').style.display = 'none';
-  voidData = { subject: subjectAddr, propertyName, results, redMi, orangeMi, blueMi };
+  voidData = { subject: subjectAddr, propertyName, results, redMi, orangeMi, blueMi, greenMi };
   document.getElementById('void-modal').classList.remove('open');
   renderVoidPanel();
   placeVoidMarkers();
