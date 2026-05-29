@@ -170,6 +170,11 @@
     .footer-btns { display: flex; gap: 6px; margin-top: 8px; }
     .footer-btns button { flex: 1; font-size: 11px; padding: 6px; }
 
+    /* ── Shape Styler ── */
+    #shape-styler { position:fixed; z-index:6000; background:#1f2937; border:1px solid #374151; border-radius:10px; padding:12px 14px; box-shadow:0 8px 32px rgba(0,0,0,0.6); min-width:180px; display:none; }
+    #shape-styler .ss-title { font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+    #shape-styler .ss-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    #shape-styler label { font-size:11px; color:#6b7280; width:48px; flex-shrink:0; }
     /* ── Status bar ── */
     #status-bar { background: #111827; border-top: 1px solid #1f2937; padding: 5px 18px; font-size: 11px; color: #6b7280; flex-shrink: 0; }
     #status-bar span.hi { color: #60a5fa; }
@@ -318,6 +323,30 @@
 <div id="map-wrap">
   <div id="loading"><div class="spinner"></div><span id="loading-msg">Loading...</span></div>
   <div id="map"></div>
+  <!-- Shape Styler Popover -->
+  <div id="shape-styler">
+    <div class="ss-title"><span id="ss-label">Shape Style</span><button onclick="closeShapeStyler()" style="background:none;border:none;color:#6b7280;font-size:16px;cursor:pointer;line-height:1;">×</button></div>
+    <div class="ss-row">
+      <label>Color</label>
+      <input type="color" id="ss-color" value="#fbbf24" style="width:36px;height:28px;padding:2px;border:1px solid #4b5563;border-radius:5px;background:#374151;cursor:pointer;"/>
+      <span id="ss-color-hex" style="font-size:11px;color:#9ca3af;font-family:monospace;">#fbbf24</span>
+    </div>
+    <div class="ss-row">
+      <label>Weight</label>
+      <input type="range" id="ss-weight" min="0.5" max="12" step="0.5" value="3" style="flex:1;accent-color:#fbbf24;"/>
+      <span id="ss-weight-val" style="font-size:11px;color:#9ca3af;min-width:22px;">3</span>
+    </div>
+    <div class="ss-row" id="ss-opacity-row">
+      <label>Fill %</label>
+      <input type="range" id="ss-opacity" min="0" max="100" step="5" value="50" style="flex:1;accent-color:#fbbf24;"/>
+      <span id="ss-opacity-val" style="font-size:11px;color:#9ca3af;min-width:26px;">50%</span>
+    </div>
+    <div class="ss-row" id="ss-ring-opacity-row" style="display:none;">
+      <label>Opacity</label>
+      <input type="range" id="ss-ring-opacity" min="10" max="100" step="5" value="100" style="flex:1;accent-color:#fbbf24;"/>
+      <span id="ss-ring-opacity-val" style="font-size:11px;color:#9ca3af;min-width:26px;">100%</span>
+    </div>
+  </div>
   <!-- Void Legend overlay -->
   <div id="void-legend" style="display:none;position:absolute;bottom:32px;left:14px;background:rgba(17,24,39,0.92);border:1px solid #374151;border-radius:10px;padding:10px 14px;z-index:10;min-width:170px;backdrop-filter:blur(4px);">
     <div style="font-size:10px;font-weight:700;color:#6ee7b7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px;">🔍 Void Legend</div>
@@ -736,11 +765,24 @@ function initMap() {
     drawingManager.setDrawingMode(null);
     setDrawBtnActive(null);
     currentDrawMode = null;
-    // Remove edit handles after shape is complete
     if (e.type === 'polygon' || e.type === 'rectangle') {
       e.overlay.setEditable(false);
       e.overlay.setDraggable(false);
     }
+    // Click to restyle this specific shape
+    const shape = e.overlay;
+    const typeLabel = e.type === 'polygon' ? 'Polygon' : e.type === 'rectangle' ? 'Rectangle' : 'Line';
+    google.maps.event.addListener(shape, 'click', (ev) => {
+      const isLine = e.type === 'polyline';
+      const opts = shape.fillColor ? shape.get('fillColor') : null;
+      openShapeStyler(shape, ev.domEvent.clientX, ev.domEvent.clientY, {
+        label: typeLabel + ' Style',
+        line: isLine,
+        color: shape.get('strokeColor') || '#fbbf24',
+        weight: shape.get('strokeWeight') || 3,
+        fillPct: isLine ? 50 : Math.round((shape.get('fillOpacity') || 0.5) * 100),
+      });
+    });
   });
 
   renderRecentSubjects();
@@ -1095,7 +1137,17 @@ function toggleMileRing(miles) {
     activeRings.delete(key);
   } else {
     const colors = { '1mi':'#3b82f6','3mi':'#10b981','5mi':'#ef4444' };
-    mileCircles[key] = new google.maps.Circle({ map, center:subjectLatLng, radius:MILES_M[miles], strokeColor:colors[key], strokeOpacity:1.0, strokeWeight:3.5, fillOpacity:0, zIndex:2 });
+    const mCircle = new google.maps.Circle({ map, center:subjectLatLng, radius:MILES_M[miles], strokeColor:colors[key], strokeOpacity:1.0, strokeWeight:3.5, fillOpacity:0, zIndex:2 });
+    mileCircles[key] = mCircle;
+    mCircle.addListener('click', (ev) => {
+      openShapeStyler(mCircle, ev.domEvent.clientX, ev.domEvent.clientY, {
+        label: miles + ' mi Ring',
+        ring: true,
+        color: mCircle.get('strokeColor') || colors[key],
+        weight: mCircle.get('strokeWeight') || 3.5,
+        ringOpacity: Math.round((mCircle.get('strokeOpacity') || 1) * 100),
+      });
+    });
     const pos = google.maps.geometry?.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), MILES_M[miles], 0)
              || { lat: subjectLatLng.lat + MILES_M[miles]/111320, lng: subjectLatLng.lng };
     mileCircles[key+'_label'] = new google.maps.Marker({ position:pos, map, icon:{url:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',scaledSize:new google.maps.Size(1,1)}, label:{text:miles+' mi',color:colors[key],fontWeight:'700',fontSize:'12px'}, zIndex:3 });
@@ -1117,7 +1169,18 @@ function toggleDriveRing(mins) {
     activeRings.delete(key);
   } else {
     const colors = { '1min':'#a78bfa','5min':'#f59e0b','10min':'#f97316' };
-    driveCircles[key] = new google.maps.Circle({ map, center:subjectLatLng, radius:DRIVE_M[mins], strokeColor:colors[key], strokeOpacity:0.8, strokeWeight:2, fillColor:colors[key], fillOpacity:0.06, zIndex:2 });
+    const dCircle = new google.maps.Circle({ map, center:subjectLatLng, radius:DRIVE_M[mins], strokeColor:colors[key], strokeOpacity:0.8, strokeWeight:2, fillColor:colors[key], fillOpacity:0.06, zIndex:2 });
+    dCircle._hasFill = true;
+    driveCircles[key] = dCircle;
+    dCircle.addListener('click', (ev) => {
+      openShapeStyler(dCircle, ev.domEvent.clientX, ev.domEvent.clientY, {
+        label: mins + ' min Drive Ring',
+        ring: true,
+        color: dCircle.get('strokeColor') || colors[key],
+        weight: dCircle.get('strokeWeight') || 2,
+        ringOpacity: Math.round((dCircle.get('strokeOpacity') || 0.8) * 100),
+      });
+    });
     const pos = google.maps.geometry?.spherical.computeOffset(new google.maps.LatLng(subjectLatLng), DRIVE_M[mins], 90)
              || { lat: subjectLatLng.lat, lng: subjectLatLng.lng + DRIVE_M[mins]/89000 };
     driveCircles[key+'_label'] = new google.maps.Marker({ position:pos, map, icon:{url:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',scaledSize:new google.maps.Size(1,1)}, label:{text:`~${mins} min`,color:colors[key],fontWeight:'700',fontSize:'12px'}, zIndex:3 });
@@ -1843,6 +1906,105 @@ function updateRingStyle() {
     try { c.setOptions({ strokeOpacity: op, fillOpacity: op * 0.06 }); } catch(e){}
   });
 }
+
+// ════════════════════════════════════════════
+// SHAPE STYLER — click any shape or ring to restyle it individually
+// ════════════════════════════════════════════
+let _ssTarget = null; // the shape/circle being styled
+
+function openShapeStyler(target, pageX, pageY, opts) {
+  _ssTarget = target;
+  const el = document.getElementById('shape-styler');
+  if (!el) return;
+
+  const isRing   = opts?.ring === true;
+  const isLine   = opts?.line === true;
+  const label    = opts?.label || (isRing ? 'Ring Style' : isLine ? 'Line Style' : 'Shape Style');
+  const color    = opts?.color || '#fbbf24';
+  const weight   = opts?.weight || 3;
+  const fillPct  = opts?.fillPct ?? 50;
+  const ringOp   = opts?.ringOpacity ?? 100;
+
+  document.getElementById('ss-label').textContent = label;
+  document.getElementById('ss-color').value = color;
+  document.getElementById('ss-color-hex').textContent = color;
+  document.getElementById('ss-weight').value = weight;
+  document.getElementById('ss-weight-val').textContent = weight;
+  document.getElementById('ss-opacity').value = fillPct;
+  document.getElementById('ss-opacity-val').textContent = fillPct + '%';
+  document.getElementById('ss-ring-opacity').value = ringOp;
+  document.getElementById('ss-ring-opacity-val').textContent = ringOp + '%';
+
+  document.getElementById('ss-opacity-row').style.display = (isRing || isLine) ? 'none' : 'flex';
+  document.getElementById('ss-ring-opacity-row').style.display = isRing ? 'flex' : 'none';
+
+  // Update accent color
+  ['ss-weight','ss-opacity','ss-ring-opacity'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.style.accentColor = color;
+  });
+
+  // Position near click, keep on-screen
+  const w = 200, h = isRing ? 160 : isLine ? 130 : 170;
+  const x = Math.min(pageX, window.innerWidth - w - 12);
+  const y = Math.min(pageY, window.innerHeight - h - 12);
+  el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.display = 'block';
+}
+
+function closeShapeStyler() {
+  document.getElementById('shape-styler').style.display = 'none';
+  _ssTarget = null;
+}
+
+function _ssApply() {
+  if (!_ssTarget) return;
+  const color   = document.getElementById('ss-color').value;
+  const weight  = parseFloat(document.getElementById('ss-weight').value);
+  const fillPct = parseFloat(document.getElementById('ss-opacity').value) / 100;
+  const ringOp  = parseFloat(document.getElementById('ss-ring-opacity').value) / 100;
+
+  document.getElementById('ss-color-hex').textContent = color;
+  document.getElementById('ss-weight-val').textContent = weight;
+  document.getElementById('ss-opacity-val').textContent = Math.round(fillPct*100) + '%';
+  document.getElementById('ss-ring-opacity-val').textContent = Math.round(ringOp*100) + '%';
+  ['ss-weight','ss-opacity','ss-ring-opacity'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.style.accentColor = color;
+  });
+
+  try {
+    if (typeof _ssTarget.getRadius === 'function') {
+      // It's a Circle (ring)
+      _ssTarget.setOptions({ strokeColor:color, strokeWeight:weight, strokeOpacity:ringOp });
+      if (_ssTarget._hasFill) _ssTarget.setOptions({ fillColor:color, fillOpacity:ringOp * 0.15 });
+    } else if (typeof _ssTarget.getPath === 'function' || typeof _ssTarget.getPaths === 'function') {
+      // Polygon / polyline
+      const isLine = typeof _ssTarget.getPaths !== 'function' && typeof _ssTarget.getPath === 'function' && !_ssTarget.getFillColor;
+      if (isLine) {
+        _ssTarget.setOptions({ strokeColor:color, strokeWeight:weight });
+      } else {
+        _ssTarget.setOptions({ fillColor:color, fillOpacity:fillPct, strokeColor:color, strokeWeight:weight });
+      }
+    } else if (typeof _ssTarget.getBounds === 'function') {
+      // Rectangle
+      _ssTarget.setOptions({ fillColor:color, fillOpacity:fillPct, strokeColor:color, strokeWeight:weight });
+    }
+  } catch(e) { console.warn('Shape styler apply error:', e); }
+}
+
+// Wire live preview on all shape styler inputs
+document.addEventListener('DOMContentLoaded', () => {
+  ['ss-color','ss-weight','ss-opacity','ss-ring-opacity'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', _ssApply);
+  });
+  // Click elsewhere to close
+  document.addEventListener('click', (e) => {
+    const ss = document.getElementById('shape-styler');
+    if (ss && ss.style.display !== 'none' && !ss.contains(e.target)) closeShapeStyler();
+  }, true);
+});
+
 
 function updateRbButtons() {
   ['hybrid','roadmap','satellite'].forEach(function(t){
