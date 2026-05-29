@@ -3166,6 +3166,12 @@ function renderVoidPanel() {
   subEl.innerHTML = `<div class="pig-eyebrow" style="color:#6ee7b7;">⭐ Subject Site</div><div class="pig-addr">${subject}</div><div style="font-size:10px;color:#6b7280;margin-top:4px;">🟢 Void · 🔵 &gt;${orangeMi||2}mi · 🟠 ${redMi||1}–${orangeMi||2}mi · 🔴 &lt;${redMi||1}mi · 🟣 Relocation</div>`;
   list.appendChild(subEl);
 
+  // Build Report button — pinned just under the subject address
+  const rptBtn = document.createElement('div');
+  rptBtn.style.cssText = 'padding:6px 8px 4px;';
+  rptBtn.innerHTML = `<button onclick="openVoidReportBuilder()" style="width:100%;padding:8px;border-radius:6px;border:none;cursor:pointer;font-weight:700;font-size:12px;background:linear-gradient(135deg,#059669,#0d9488);color:white;letter-spacing:0.2px;">📄 Build Report</button>`;
+  list.appendChild(rptBtn);
+
   // Summary row
   const sumEl = document.createElement('div');
   sumEl.style.cssText = 'display:flex;gap:4px;padding:8px 8px 4px;flex-wrap:wrap;';
@@ -3248,9 +3254,8 @@ function renderVoidPanel() {
     });
   });
 
-  // Footer
+  // Footer - CSV and Exit only (Build Report moved to top)
   document.getElementById('panel-footer').innerHTML = `
-    <button style="width:100%;font-size:11px;padding:7px;border-radius:6px;border:none;cursor:pointer;font-weight:700;background:linear-gradient(135deg,#059669,#0d9488);color:white;margin-bottom:5px;" onclick="openVoidReportBuilder()">📄 Build Report</button>
     <div style="display:flex;gap:5px;">
       <button class="btn-gray" style="flex:1;font-size:11px;" onclick="exportVoidCSV()">⬇ CSV</button>
       <button class="btn-gray" style="flex:1;font-size:11px;" onclick="exitVoidMode()">← Exit</button>
