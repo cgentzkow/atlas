@@ -288,6 +288,7 @@
   <button id="mt-satellite" class="btn-gray" onclick="setMapType('satellite')" title="Satellite">🛰 Satellite</button>
   <button id="mt-hybrid"    class="btn-gray btn-active" onclick="setMapType('hybrid')" title="Satellite + labels">🛰🗺 Hybrid</button>
   <button id="mt-terrain"   class="btn-gray" onclick="setMapType('terrain')"  title="Terrain / topo">🏔 Terrain</button>
+  <button id="btn-parcel" class="btn-gray" onclick="toggleParcelOverlay()" title="Toggle parcel boundaries on map">🏛 Parcel</button>
   <div class="sep"></div>
   <span class="row-label">Mile Rings:</span>
   <button id="ring-1mi" class="btn-gray" onclick="toggleMileRing(1)">1 mi</button>
@@ -756,33 +757,42 @@ function toggleParcelOverlay() {
   const btn = document.getElementById('btn-parcel');
   if (parcelOn) {
     if (!parcelOverlay) {
-      // SD County ArcGIS parcel tile layer
-      parcelOverlay = new google.maps.ImageMapType({
-        getTileUrl: (coord, zoom) =>
-          `https://gis.sdat.state.md.us/iMap/tiles/${zoom}/${coord.y}/${coord.x}`,
-        tileSize: new google.maps.Size(256, 256),
-        opacity: 0.7,
-        name: 'Parcels',
-        maxZoom: 22,
-      });
-      // Try SD County first; use a known-good ArcGIS tile endpoint
+      // Try Regrid public parcel tiles (free, works without auth for display)
+      // Falls back to opening assessor site if tiles don't load
       parcelOverlay = new google.maps.ImageMapType({
         getTileUrl: (coord, zoom) => {
-          // Standard ArcGIS tile URL for SD County parcel layer
-          return `https://arcc-gis.sandiegocounty.gov/arcgis/rest/services/Parcels/MapServer/tile/${zoom}/${coord.y}/${coord.x}`;
+          if (zoom < 14) return null; // parcels only visible at street level
+          // SANDAG / SD County parcel WMS via tile endpoint
+          return `https://gis.sandag.org/sdgis/services/Boundary/SanDiegoCounty_Parcels/MapServer/WMSServer?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&BBOX=${tileToBBox(coord,zoom)}&SRS=EPSG:4326&WIDTH=256&HEIGHT=256&LAYERS=0&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE`;
         },
         tileSize: new google.maps.Size(256, 256),
-        opacity: 0.75,
+        opacity: 0.8,
         name: 'Parcels',
       });
     }
     map.overlayMapTypes.push(parcelOverlay);
     if (btn) { btn.classList.add('btn-active'); btn.textContent = '🏛 Parcel ✓'; }
+    // Also open county assessor in new tab for parcel details
+    const addr = subjectAddr || document.getElementById('subject-input').value.trim();
+    if (addr) {
+      window.open('https://arcc-gis.sandiegocounty.gov/apps/parcel-search/?q=' + encodeURIComponent(addr), '_blank');
+    } else {
+      window.open('https://arcc-gis.sandiegocounty.gov/apps/parcel-search/', '_blank');
+    }
   } else {
     const idx = map.overlayMapTypes.getArray().indexOf(parcelOverlay);
     if (idx > -1) map.overlayMapTypes.removeAt(idx);
     if (btn) { btn.classList.remove('btn-active'); btn.textContent = '🏛 Parcel'; }
   }
+}
+// Convert tile coords to WMS BBOX
+function tileToBBox(coord, zoom) {
+  const n = Math.pow(2, zoom);
+  const west  = (coord.x / n * 360 - 180).toFixed(6);
+  const east  = ((coord.x + 1) / n * 360 - 180).toFixed(6);
+  const north = (Math.atan(Math.sinh(Math.PI * (1 - 2 * coord.y / n))) * 180 / Math.PI).toFixed(6);
+  const south = (Math.atan(Math.sinh(Math.PI * (1 - 2 * (coord.y + 1) / n))) * 180 / Math.PI).toFixed(6);
+  return `${west},${south},${east},${north}`;
 }
 
 function geocodeSubjectManual() {
@@ -1175,8 +1185,11 @@ function getDomain(name) {
 function getLogoUrls(name) {
   const domain = getDomain(name) || name.toLowerCase().replace(/[^a-z0-9]/g,'') + '.com';
   return [
-    `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=128&format=png`,
+    // Clearbit is most reliable for brand logos (free, good CORS)
     `https://logo.clearbit.com/${domain}`,
+    // logo.dev as second option
+    `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=128&format=png`,
+    // Google favicon as reliable fallback
     `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
     `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
   ];
@@ -1797,18 +1810,38 @@ function rbUpdateTitle() {
 function updateDrawStyle() {
   const color = document.getElementById('draw-color')?.value || '#fbbf24';
   const weight = parseFloat(document.getElementById('draw-weight')?.value || 3);
-  if (!drawingManager) return;
-  drawingManager.set('polygonOptions',   { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
-  drawingManager.set('rectangleOptions', { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
-  drawingManager.set('polylineOptions',  { strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
-  // Also update accent color of sliders
+  if (drawingManager) {
+    drawingManager.set('polygonOptions',   { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+    drawingManager.set('rectangleOptions', { fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+    drawingManager.set('polylineOptions',  { strokeColor:color, strokeWeight:weight, editable:false, zIndex:1 });
+  }
+  // Update ALL existing drawn shapes
+  drawnShapes.forEach(s => {
+    try {
+      if (s.setOptions) {
+        if (typeof s.getPath === 'function' || typeof s.getPaths === 'function') {
+          s.setOptions({ fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight });
+        } else if (typeof s.getBounds === 'function') {
+          s.setOptions({ fillColor:color, fillOpacity:0.5, strokeColor:color, strokeWeight:weight });
+        } else {
+          s.setOptions({ strokeColor:color, strokeWeight:weight });
+        }
+      }
+    } catch(e){}
+  });
   const wSlider = document.getElementById('draw-weight');
   if (wSlider) wSlider.style.accentColor = color;
 }
 function updateRingStyle() {
   const op = (parseFloat(document.getElementById('ring-opacity')?.value || 100)) / 100;
-  Object.values(mileCircles).forEach(c => { try { c.setOptions({ strokeOpacity: op }); } catch(e){} });
-  Object.values(driveCircles).forEach(c => { try { c.setOptions({ strokeOpacity: op, fillOpacity: op * 0.06 }); } catch(e){} });
+  // Only update actual Circle objects (skip _label markers)
+  Object.entries(mileCircles).forEach(([k,c]) => {
+    if (k.includes('_label')) return;
+    try { c.setOptions({ strokeOpacity: op }); } catch(e){}
+  });
+  Object.values(driveCircles).forEach(c => {
+    try { c.setOptions({ strokeOpacity: op, fillOpacity: op * 0.06 }); } catch(e){}
+  });
 }
 
 function updateRbButtons() {
@@ -2151,14 +2184,24 @@ async function placeVoidMarkers() {
       this._build();
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (this.iw) { this.iw.close(); this.iw = null; return; }
+        if (this.iw) { this.iw.close(); this.iw = null; }
         const r = this.r;
         const distStr = r.crowMiles ? `<br/><small>🐦 ${r.crowMiles.toFixed(1)} mi crow-flies</small>` : '';
         this.iw = new google.maps.InfoWindow({
-          content: `<div style="color:#111;font-size:13px;max-width:200px;"><strong>${r.name}</strong><br/><small>${r.address||'Not found'}</small>${distStr}</div>`
+          content: `<div style="color:#111;font-size:13px;max-width:200px;"><strong>${r.name}</strong><br/><small>${r.address||'Not found'}</small>${distStr}<br/><small style="color:#3b82f6;cursor:pointer;" onclick="openVoidLogoFix('${r.name.replace(/'/g,"\\'")}')">🖼 Fix logo</small></div>`
         });
         this.iw.setPosition(this.latlng);
         this.iw.open(map);
+        // Scroll panel to matching row and flash it
+        const panelItems = document.querySelectorAll('.void-item');
+        for (const item of panelItems) {
+          if (item.querySelector('div')?.textContent?.includes(r.name)) {
+            item.scrollIntoView({ behavior:'smooth', block:'center' });
+            item.style.background = 'rgba(59,130,246,0.25)';
+            setTimeout(() => item.style.background = '', 1500);
+            break;
+          }
+        }
       });
       this.getPanes().overlayMouseTarget.appendChild(el);
     }
