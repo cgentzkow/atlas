@@ -2037,7 +2037,9 @@ async function placeVoidMarkers() {
           img.crossOrigin = 'anonymous';
           img.onload = () => {
             if (img.naturalWidth > 8 && img.naturalHeight > 8) {
-              r._voidLogoLoaded = true; r._voidLogoUrl = url; resolve();
+              r._voidLogoLoaded = true; r._voidLogoUrl = url;
+              saveLogoToDB(r.name, url); // cache in brand_logos for future use
+              resolve();
             } else tryNext();
           };
           img.onerror = () => tryNext();
