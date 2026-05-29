@@ -467,11 +467,15 @@
         </div>
         <div class="void-slider-grid">
           <div class="void-slider-label"><div class="void-slider-dot" style="background:#3b82f6;"></div>Far &lt;</div>
-          <input type="range" class="void-range-blue" id="void-blue-threshold" min="0.25" max="5" value="4" step="0.25"
-            oninput="document.getElementById('void-blue-val').textContent=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'')+' mi'"/>
-          <span id="void-blue-val" class="void-range-val" style="color:#60a5fa;font-size:12px;">4 mi</span>
+          <input type="range" class="void-range-blue" id="void-blue-threshold" min="0.25" max="5" value="3" step="0.25"
+            oninput="var v=parseFloat(this.value).toFixed(2).replace(/\.?0+$/,'');document.getElementById('void-blue-val').textContent=v+' mi';document.getElementById('void-green-val').textContent=v+' mi';"/>
+          <span id="void-blue-val" class="void-range-val" style="color:#60a5fa;font-size:12px;">3 mi</span>
         </div>
-        <div style="font-size:10px;color:#6b7280;margin-top:4px;">🟢 Green = not found within Far range (true void)</div>
+        <div class="void-slider-grid" style="opacity:0.85;">
+          <div class="void-slider-label"><div class="void-slider-dot" style="background:#10b981;"></div>No Presence &gt;</div>
+          <div style="position:relative;height:6px;border-radius:3px;background:linear-gradient(to right,#10b981,#10b981);margin:auto 0;"></div>
+          <span id="void-green-val" class="void-range-val" style="color:#34d399;font-size:12px;">3 mi</span>
+        </div>
       </div>
       <div id="void-progress-wrap" style="margin:10px 0 4px;display:none;">
         <div id="void-progress-bg"><div id="void-progress-bar"></div></div>
