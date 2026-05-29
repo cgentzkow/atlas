@@ -1846,7 +1846,15 @@ function openReportBuilder() {
   document.getElementById('rb-subtitle-input').value = rbState.subtitle;
   updateRbButtons();
   showRbLoading('Capturing map...');
-  rbCaptureCurrentMap().then(function() { hideRbLoading(); renderRbPreview(); });
+  rbCaptureCurrentMap().then(async function() {
+    // Pre-load all logos so they appear in the preview immediately
+    showRbLoading('Loading logos...');
+    for (const r of voidData.results) {
+      if (!r.logoUrl && r.name) r.logoUrl = await getLogoFromDB(r.name);
+    }
+    hideRbLoading();
+    renderRbPreview();
+  });
 }
 
 function closeReportBuilder() {
@@ -1892,6 +1900,15 @@ async function rbSwitchMapType(type) {
   rbMapDims[type] = {w:canvas.width, h:canvas.height};
   map.setMapTypeId(currentType);
   hideRbLoading();
+  renderRbPreview();
+}
+
+function rbSetBrand(v) {
+  rbState.brand = v;
+  ['gentz','duhs'].forEach(x => {
+    const el = document.getElementById('rb-br-'+x);
+    if (el) el.classList.toggle('rb-btn-active', x === v);
+  });
   renderRbPreview();
 }
 
@@ -2259,33 +2276,7 @@ function buildVoidRbHTML(mapImg, W, H) {
     html+='</div>';
   }
   html+='</div>';
-  // Subject property label pinned on top of map image
-  if (subjectLatLng && typeof google !== 'undefined') {
-    try {
-      const proj = map.getProjection();
-      if (proj) {
-        const worldPt = proj.fromLatLngToPoint(new google.maps.LatLng(subjectLatLng));
-        const mapBounds = map.getBounds();
-        if (mapBounds) {
-          const nw = proj.fromLatLngToPoint(new google.maps.LatLng(mapBounds.getNorthEast().lat(), mapBounds.getSouthWest().lng()));
-          const zoom = map.getZoom();
-          const scale = Math.pow(2, zoom);
-          const px = (worldPt.x - nw.x) * scale;
-          const py = (worldPt.y - nw.y) * scale;
-          const pxScaled = px * (MAP_W / map.getDiv().offsetWidth);
-          const pyScaled = py * (MAP_H / map.getDiv().offsetHeight);
-          const subLabel = (subjectLatLng && voidData?.propertyName) ? voidData.propertyName : (voidData?.subject||'').split(',')[0];
-          const lw = Math.min(140, subLabel.length * 7.5 + 20);
-          html += `<div style="position:absolute;top:${HDR}px;left:0;width:${MAP_W}px;height:${MAP_H}px;pointer-events:none;overflow:hidden;">`;
-          html += `<div style="position:absolute;left:${Math.round(pxScaled - lw/2)}px;top:${Math.round(pyScaled - 42)}px;z-index:9999;">`;
-          html += `<div style="background:#fbbf24;border-radius:6px;padding:3px 8px;font-size:9px;font-weight:700;color:#1a1a1a;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);border:1.5px solid white;">${escHtml(subLabel.length>22?subLabel.slice(0,21)+'…':subLabel)}</div>`;
-          html += `<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid #fbbf24;margin:0 auto;"></div>`;
-          html += `</div></div>`;
-        }
-      }
-    } catch(e) {}
-  }
-  // Right column — page 1: Void (green) + Relocation (purple) only
+    // Right column — page 1: Void (green) + Relocation (purple) only
   if(tp==='right'){
     html+='<div style="position:absolute;top:'+HDR+'px;left:'+MAP_W+'px;width:'+LEG_W+'px;height:'+CONT_H+'px;background:'+PAPER+';border-left:2.5px solid '+TEAL+';overflow:hidden;display:flex;flex-direction:column;">';
     html+='<div style="flex:1;overflow:hidden;">';
@@ -3356,7 +3347,15 @@ function openVoidReportBuilder() {
   document.getElementById('rb-subtitle-input').value = voidRbState.subtitle;
   updateRbButtons();
   showRbLoading('Capturing map...');
-  rbCaptureCurrentMap().then(function() { hideRbLoading(); renderRbPreview(); });
+  rbCaptureCurrentMap().then(async function() {
+    // Pre-load all logos so they appear in the preview immediately
+    showRbLoading('Loading logos...');
+    for (const r of voidData.results) {
+      if (!r.logoUrl && r.name) r.logoUrl = await getLogoFromDB(r.name);
+    }
+    hideRbLoading();
+    renderRbPreview();
+  });
 }
 
 // filterStatuses: array like ['green','blue'] to show only those, or null for all
@@ -3583,38 +3582,61 @@ function buildVoidPage2Pages(W, H) {
   });
   flushPage();
 
-  // ── Blue Targets Summary page (inserted as first page 2) ──
+  // ── Blue Targets Summary page — same 5-col table as page 1 ──
   function buildBlueSummaryPage(W, H, pageNum) {
-    const CAT_COLORS = { blue:'#3b82f6' };
-    const byCat = {};
-    blueBrands.forEach(name => {
-      const r = results.find(x => x.name === name);
-      if (!r) return;
-      if (!byCat[r.cat]) byCat[r.cat] = [];
-      // Get closest blue location distance
-      const rows = results.filter(x => x.name === name && x.found);
-      const nearest = rows.sort((a,b) => (a.crowMiles||99)-(b.crowMiles||99))[0];
-      byCat[r.cat].push({ name, logoUrl: r.logoUrl, nearestMi: nearest?.crowMiles, driveText: nearest?.driveText, cat: r.cat });
-    });
     const CONT_H = H - HDR - FTR;
     let inner = makeHeaderHTML(pageNum);
-    inner += `<div style="position:absolute;top:${HDR}px;left:0;width:${W}px;height:${CONT_H}px;overflow:hidden;background:white;padding:14px 18px;box-sizing:border-box;">`;
-    inner += `<div style="font-size:10px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Blue Targets — Far Competition (Uncancelled)</div>`;
-    inner += `<div style="font-size:8px;color:#555;margin-bottom:14px;">Brands where all known locations are beyond the Close threshold. No red/orange locations — potential relocation or market-entry candidates.</div>`;
-    Object.entries(byCat).forEach(([cat, tenants]) => {
-      inner += `<div style="margin-bottom:12px;"><div style="font-size:7px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.4px;background:#eff6ff;padding:3px 6px;border-radius:4px;margin-bottom:6px;">${escHtml(cat)}</div>`;
-      inner += `<div style="display:flex;flex-wrap:wrap;gap:6px;">`;
-      tenants.forEach(t => {
-        const logo = t.logoUrl ? `<img src="${t.logoUrl}" style="width:22px;height:22px;object-fit:contain;border-radius:3px;" />` : `<div style="width:22px;height:22px;background:#dbeafe;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:#3b82f6;">${escHtml(t.name.slice(0,2).toUpperCase())}</div>`;
-        inner += `<div style="display:flex;align-items:center;gap:5px;padding:4px 8px;border:1.5px solid #bfdbfe;border-radius:6px;background:#f0f7ff;">
-          ${logo}
-          <div><div style="font-size:8px;font-weight:700;color:#1e3a5f;">${escHtml(t.name)}</div>
-          ${t.nearestMi ? `<div style="font-size:7px;color:#6b7280;">Nearest: ${t.nearestMi.toFixed(1)} mi${t.driveText ? ' · '+t.driveText : ''}</div>` : ''}
-          </div></div>`;
+    inner += `<div style="position:absolute;top:${HDR}px;left:0;width:${W}px;height:${CONT_H}px;overflow:hidden;background:white;">`;
+
+    if (blueBrands.length === 0) {
+      inner += `<div style="padding:24px;font-size:11px;color:#9ca3af;text-align:center;">No blue targets — all brands have nearby or cancelled locations.</div>`;
+    } else {
+      // Intro strip
+      inner += `<div style="padding:6px 10px;background:#eff6ff;border-bottom:2px solid #3b82f6;">
+        <div style="font-size:7.5px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.5px;">Blue Targets — Far Competition (Uncancelled)</div>
+        <div style="font-size:6.5px;color:#555;margin-top:2px;">All known locations are beyond the Close threshold. Potential relocation or market-entry candidates.</div>
+      </div>`;
+
+      // Build one row per blue brand (nearest location)
+      const blueRows = blueBrands.map(name => {
+        const r = results.find(x => x.name === name);
+        const nearest = results.filter(x => x.name === name && x.found).sort((a,b) => (a.crowMiles||99)-(b.crowMiles||99))[0];
+        return { ...r, crowMiles: nearest?.crowMiles, driveText: nearest?.driveText, address: nearest?.address, status:'blue', relocation:false };
       });
-      inner += `</div></div>`;
-    });
-    if (blueBrands.length === 0) inner += `<div style="font-size:11px;color:#9ca3af;text-align:center;padding:30px;">No blue targets — all brands have close or cancelled locations.</div>`;
+
+      // Use buildVoidLegendTable but pass blueRows — we'll inline the same table structure
+      inner += `<table style="width:100%;border-collapse:collapse;">`;
+      inner += `<thead><tr style="background:${INK};">
+        <th style="width:26px;padding:4px 3px;text-align:center;font-size:6px;font-weight:700;color:#F7F5F1;">LOGO</th>
+        <th style="padding:4px 6px;text-align:left;font-size:6px;font-weight:700;color:#F7F5F1;">TENANT</th>
+        <th style="width:50px;padding:4px 3px;text-align:center;font-size:6px;font-weight:700;color:#F7F5F1;">STATUS</th>
+        <th style="width:44px;padding:4px 3px;text-align:center;font-size:6px;font-weight:700;color:#F7F5F1;">DIST</th>
+        <th style="width:50px;padding:4px 3px;text-align:center;font-size:6px;font-weight:700;color:#F7F5F1;">DRIVE</th>
+      </tr></thead><tbody>`;
+
+      let lastCat = null;
+      blueRows.forEach((r, i) => {
+        if (r.cat !== lastCat) {
+          inner += `<tr><td colspan="5" style="padding:4px 6px 2px;font-size:6px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:.4px;background:#eff6ff;border-top:1px solid #bfdbfe;">${escHtml(r.cat||'')}</td></tr>`;
+          lastCat = r.cat;
+        }
+        const bg = i % 2 === 0 ? '#FBFAF7' : 'white';
+        const sc = '#3b82f6';
+        const logoHtml = r.logoUrl
+          ? `<img src="${r.logoUrl}" style="width:18px;height:18px;object-fit:contain;display:block;margin:auto;border-radius:2px;" />`
+          : `<div style="width:18px;height:18px;border-radius:2px;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:5px;font-weight:700;color:#3b82f6;margin:auto;">${escHtml(r.name.slice(0,2).toUpperCase())}</div>`;
+        inner += `<tr style="background:${bg};">
+          <td style="padding:3px 2px;text-align:center;">${logoHtml}</td>
+          <td style="padding:3px 6px;font-size:7.5px;color:${INK};font-weight:600;line-height:1.2;">${escHtml(r.name)}
+            ${r.address ? `<div style="font-size:6px;color:#888;font-weight:400;">${escHtml(r.address.split(',').slice(0,2).join(','))}</div>` : ''}
+          </td>
+          <td style="padding:3px 2px;text-align:center;"><span style="background:#dbeafe;color:#3b82f6;font-size:6px;font-weight:700;padding:1px 5px;border-radius:6px;">Far</span></td>
+          <td style="padding:3px 2px;text-align:center;font-size:7px;color:${INK};">${r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '—'}</td>
+          <td style="padding:3px 2px;text-align:center;font-size:7px;color:${INK};">${r.driveText||'—'}</td>
+        </tr>`;
+      });
+      inner += `</tbody></table>`;
+    }
     inner += `</div>` + makeFooterHTML(pageNum);
     return `<div style="position:relative;width:${W}px;height:${H}px;background:white;font-family:Arial,Helvetica,sans-serif;overflow:hidden;">${inner}</div>`;
   }
