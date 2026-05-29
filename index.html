@@ -1856,6 +1856,9 @@ function openReportBuilder() {
         if (b64) r.logoUrl = b64;
       }
     }
+    // Square all void logos so <img> tags in report HTML have no distortion
+    showRbLoading('Squaring logos...');
+    await squareVoidLogos(18);
     hideRbLoading();
     renderRbPreview();
   });
@@ -2145,6 +2148,17 @@ async function squareAllLogos(size) {
   }
 }
 
+// Square all void logos (voidData.results) so logoCell <img> has no distortion
+async function squareVoidLogos(size) {
+  if (!voidData || !voidData.results) return;
+  for (var i = 0; i < voidData.results.length; i++) {
+    var r = voidData.results[i];
+    if (r.logoUrl) {
+      r.squaredUrl = await squareLogoUrl(r.logoUrl, size);
+    }
+  }
+}
+
 function buildLegendTable(theme, tableW) {
   var dark=theme==='dark';
   var TEAL='#00A39E',BC=['#7c3aed','#4f46e5','#0ea5e9','#10b981','#f59e0b','#ef4444'];
@@ -2317,9 +2331,13 @@ async function downloadRbPDF() {
     const savedT=preview.style.transform; preview.style.transform='none';
     const savedW=outer.style.width,savedH=outer.style.height;
     outer.style.width=W+'px'; outer.style.height=H+'px';
-    await new Promise(r=>setTimeout(r,120));
+    // Re-render preview at full size with latest squaredUrl/logoUrl values before capture
+    const mapImg = rbMapCache[rbState.mapType] || '';
+    preview.style.width=W+'px'; preview.style.height=H+'px';
+    preview.innerHTML = rbState._voidMode ? buildVoidRbHTML(mapImg, W, H) : buildRbHTML(mapImg, W, H);
+    await new Promise(r=>setTimeout(r,300));
     const reportDiv=preview.querySelector('div');
-    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:10000});
+    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:12000});
     preview.style.transform=savedT; outer.style.width=savedW; outer.style.height=savedH;
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF({orientation:isLand?'landscape':'portrait',unit:'pt',format:'letter'});
@@ -2327,7 +2345,7 @@ async function downloadRbPDF() {
 
     // Void mode: add page 2+ — full tenant tables (multi-page)
     if (rbState._voidMode && voidData) {
-      // Ensure logos are loaded before building
+      // Ensure logos are loaded + base64 + squared before building page HTML
       for (const r of voidData.results) {
         if (!r.logoUrl && r.name) r.logoUrl = await getLogoFromDB(r.name);
         if (r.logoUrl && !r.logoUrl.startsWith('data:')) {
@@ -2335,6 +2353,8 @@ async function downloadRbPDF() {
           if (b64) r.logoUrl = b64;
         }
       }
+      // Re-square with latest base64 URLs (squaredUrl from open may be stale)
+      await squareVoidLogos(18);
       const allPages = buildVoidPage2Pages(W, H);
       for (let pi = 0; pi < allPages.length; pi++) {
         showRbLoading(`Building page ${pi+2} of ${allPages.length+1}...`);
@@ -2363,9 +2383,13 @@ async function downloadRbPNG() {
     const savedT=preview.style.transform; preview.style.transform='none';
     const savedW=outer.style.width,savedH=outer.style.height;
     outer.style.width=W+'px'; outer.style.height=H+'px';
-    await new Promise(r=>setTimeout(r,120));
+    // Re-render preview at full size with latest squaredUrl/logoUrl values before capture
+    const mapImg = rbMapCache[rbState.mapType] || '';
+    preview.style.width=W+'px'; preview.style.height=H+'px';
+    preview.innerHTML = rbState._voidMode ? buildVoidRbHTML(mapImg, W, H) : buildRbHTML(mapImg, W, H);
+    await new Promise(r=>setTimeout(r,300));
     const reportDiv=preview.querySelector('div');
-    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:10000});
+    const canvas=await html2canvas(reportDiv,{useCORS:true,allowTaint:true,scale:2.5,width:W,height:H,logging:false,backgroundColor:'white',imageTimeout:12000});
     preview.style.transform=savedT; outer.style.width=savedW; outer.style.height=savedH;
     const link=document.createElement('a');
     link.download=rbState.title.replace(/[^a-zA-Z0-9 ]/g,'').replace(/ +/g,'-').slice(0,40)+'.png';
@@ -2979,9 +3003,13 @@ function nameMatchesQuery(resultName, queryName) {
   const qn = norm(queryName);
   // Exact or substring match (covers "Starbucks" matching "Starbucks #1234", etc.)
   if (rn === qn || rn.includes(qn) || qn.includes(rn)) return true;
-  // Find the first significant word in the query (len > 3, skip common words)
   const SKIP = new Set(['the','and','grill','cafe','coffee','bar','shop','house','express','kitchen']);
   const qWords = qn.split(' ').filter(w => w.length > 1);
+  // If query starts with a number (e.g. "7 Brew Coffee"), require result to contain that number too.
+  // Without this, "brew" alone would match "Brew Coffee Spot".
+  if (qWords.length > 0 && /^\d+$/.test(qWords[0])) {
+    if (!rn.includes(qWords[0])) return false;
+  }
   // Use first word > 3 chars that isn't a generic word, fallback to first word
   const sigWord = qWords.find(w => w.length > 3 && !SKIP.has(w)) || qWords.find(w => w.length > 1);
   if (!sigWord) return true;
@@ -3365,6 +3393,9 @@ function openVoidReportBuilder() {
         if (b64) r.logoUrl = b64;
       }
     }
+    // Square all void logos so <img> tags in report HTML have no distortion
+    showRbLoading('Squaring logos...');
+    await squareVoidLogos(18);
     hideRbLoading();
     renderRbPreview();
   });
@@ -3373,12 +3404,16 @@ function openVoidReportBuilder() {
 // filterStatuses: array like ['green','blue'] to show only those, or null for all
 
 // ── Logo rendering for reports (html2canvas-safe) ──
-// background-image respects aspect ratio; <img> with fixed w/h distorts
+// Use <img> with explicit width/height attributes (not just CSS).
+// Logos must be pre-squared (squareLogoUrl) so width===height and no distortion occurs.
+// html2canvas renders <img width=N height=N> reliably; background-image is unreliable for cross-origin.
 function logoCell(url, name, sc, size) {
   size = size || 18;
   const abbr = escHtml((name||'').slice(0,2).toUpperCase());
   if (url) {
-    return '<div style="width:'+size+'px;height:'+size+'px;background-image:url(\'' + url.replace(/'/g,"\'") + '\');background-size:contain;background-repeat:no-repeat;background-position:center;margin:auto;"></div>';
+    const safeUrl = url.replace(/"/g, '&quot;');
+    return '<div style="width:'+size+'px;height:'+size+'px;margin:auto;overflow:hidden;display:flex;align-items:center;justify-content:center;">'
+      + '<img src="'+safeUrl+'" width="'+size+'" height="'+size+'" style="width:'+size+'px;height:'+size+'px;display:block;" crossorigin="anonymous"/></div>';
   }
   return '<div style="width:'+size+'px;height:'+size+'px;border-radius:2px;background:'+sc+'22;display:flex;align-items:center;justify-content:center;font-size:'+Math.max(5,Math.floor(size/3))+'px;font-weight:700;color:'+sc+';margin:auto;">'+abbr+'</div>';
 }
@@ -3486,7 +3521,7 @@ function buildVoidLegendTable(theme, tableW, filterStatuses) {
     const effectiveStatus = r.relocation ? 'purple' : r.status;
     const sc = STATUS_COLOR[effectiveStatus] || '#6b7280';
     const sl = STATUS_LABEL[effectiveStatus] || r.status;
-    const logoHtml = logoCell(r.logoUrl, r.name, sc, 18);
+    const logoHtml = logoCell(r.squaredUrl || r.logoUrl, r.name, sc, 18);
     html += `<tr style="background:${bg};">`;
     html += `<td style="padding:3px 4px;text-align:center;">${logoHtml}</td>`;
     html += `<td style="padding:3px 5px;font-size:7px;color:${textC};font-weight:600;">${escHtml(r.name)}</td>`;
@@ -3565,7 +3600,7 @@ function buildVoidPage2Pages(W, H) {
     const effectiveStatus = r.relocation ? 'purple' : r.status;
     const sc = STATUS_COLOR[effectiveStatus] || '#6b7280';
     const sl = STATUS_LABEL[effectiveStatus] || r.status;
-    const logoHtml = logoCell(r.logoUrl, r.name, sc, 18);
+    const logoHtml = logoCell(r.squaredUrl || r.logoUrl, r.name, sc, 18);
     const distLabel = r.crowMiles ? r.crowMiles.toFixed(1)+' mi' : '—';
     return `<tr style="background:${bg};">
       <td style="padding:3px 2px;text-align:center;">${logoHtml}</td>
