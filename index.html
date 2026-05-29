@@ -972,9 +972,11 @@ async function runPigeon() {
     return;
   }
 
-  // 3. Compute crow-flies distance from subject, sort, slice
+  // 3. Filter by name match, compute crow-flies distance, sort, slice
   const subjectLL = new google.maps.LatLng(subjectCoords);
+  const pigeonQuery = document.getElementById('pigeon-tenant').value.trim();
   const candidates = rawResults
+    .filter(p => nameMatchesQuery(p.name, pigeonQuery))
     .map(p => ({
       name: p.name,
       address: p.formatted_address || p.vicinity || '',
@@ -2681,6 +2683,26 @@ function closeVoidModal() {
   document.getElementById('void-modal').classList.remove('open');
 }
 
+// ── Name match filter: reject results where business name doesn't match query ──
+// Prevents false positives like 7-Eleven being returned for "7 Brew Coffee"
+function nameMatchesQuery(resultName, queryName) {
+  const norm = s => s.toLowerCase()
+    .replace(/[-']/g, ' ')
+    .replace(/[^a-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ').trim();
+  const rn = norm(resultName);
+  const qn = norm(queryName);
+  // Exact or substring match (covers "Starbucks" matching "Starbucks #1234", etc.)
+  if (rn === qn || rn.includes(qn) || qn.includes(rn)) return true;
+  // Find the first significant word in the query (len > 3, skip common words)
+  const SKIP = new Set(['the','and','grill','cafe','coffee','bar','shop','house','express','kitchen']);
+  const qWords = qn.split(' ').filter(w => w.length > 1);
+  // Use first word > 3 chars that isn't a generic word, fallback to first word
+  const sigWord = qWords.find(w => w.length > 3 && !SKIP.has(w)) || qWords.find(w => w.length > 1);
+  if (!sigWord) return true;
+  return rn.includes(sigWord);
+}
+
 async function runVoid() {
   const subjectAddr = document.getElementById('void-subject').value.trim();
   const propertyName = (document.getElementById('void-propname')?.value || '').trim() || subjectAddr.split(',')[0].trim();
@@ -2727,12 +2749,14 @@ async function runVoid() {
       }, (res, status) => resolve(status === 'OK' ? res : []));
     });
 
-    // Filter to within blueMi, compute distances
+    // Filter: name must match query + must be within blueMi
     const inRange = rawResults
+      .filter(p => nameMatchesQuery(p.name, tenant.name))
       .map(p => ({
         address: p.formatted_address || p.vicinity || p.name,
         coords: { lat: p.geometry.location.lat(), lng: p.geometry.location.lng() },
         crowMeters: google.maps.geometry.spherical.computeDistanceBetween(subjectLL, p.geometry.location),
+        placeName: p.name,
       }))
       .filter(p => p.crowMeters / 1609.34 <= blueMi)
       .sort((a, b) => a.crowMeters - b.crowMeters);
