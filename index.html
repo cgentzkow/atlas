@@ -458,12 +458,21 @@
       <div id="void-progress-bg"><div id="void-progress-bar"></div></div>
       <div id="void-progress-text">Initializing...</div>
     </div>
+    <div class="void-field" id="void-list-field" style="margin-bottom:10px;">
+      <label>Tenant List</label>
+      <select id="void-list-select" style="width:100%;background:#374151;border:1px solid #4b5563;color:#f3f4f6;padding:7px 10px;border-radius:6px;font-size:13px;outline:none;">
+        <option value="__builtin__">Default (Base List)</option>
+      </select>
+    </div>
     <div class="void-modal-footer" style="flex-direction:column;gap:6px;">
       <div style="display:flex;gap:8px;width:100%;">
         <button class="btn-gray" id="void-cancel-btn" onclick="closeVoidModal()" style="flex:1;">Cancel</button>
         <button class="btn-run-void" id="void-run-btn" onclick="runVoid()" style="flex:2;">🔍 Run Void Analysis</button>
       </div>
-      <button class="btn-gray" style="width:100%;font-size:11px;" onclick="openEditTenants()">✏️ Edit Tenant List</button>
+      <div style="display:flex;gap:6px;width:100%;">
+        <button class="btn-gray" style="flex:1;font-size:11px;" onclick="openEditTenants()">✏️ Edit List</button>
+        <button class="btn-green" style="flex:1;font-size:11px;" onclick="populateMapFromList()">🗺 Populate Map</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2324,12 +2333,72 @@ let voidData = null;
 let voidRunning = false;
 let voidMarkers = [];
 
-// Get the full tenant list (base + any localStorage custom ones)
+// ── Tenant Lists (Firestore-backed) ──────────────
+let _tenantLists = [];  // [{id, name, tenants:[{name,category}]}]
+
+async function loadTenantLists() {
+  try {
+    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${FB_PROJECT}/databases/(default)/documents/tenant_lists?key=${FB_KEY}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    _tenantLists = (data.documents || []).map(doc => {
+      const f = doc.fields || {};
+      const id = doc.name.split('/').pop();
+      return {
+        id,
+        name: f.name?.stringValue || id,
+        tenants: (f.tenants?.arrayValue?.values || []).map(v => ({
+          name: v.mapValue?.fields?.name?.stringValue || '',
+          cat:  v.mapValue?.fields?.category?.stringValue || ''
+        })).filter(t => t.name)
+      };
+    });
+    // Populate void modal selector
+    const sel = document.getElementById('void-list-select');
+    if (sel) {
+      // Remove old options except default
+      while (sel.options.length > 1) sel.remove(1);
+      _tenantLists.forEach(list => {
+        const opt = document.createElement('option');
+        opt.value = list.id;
+        opt.textContent = list.name + ' (' + list.tenants.length + ')';
+        sel.appendChild(opt);
+      });
+      // Auto-select the first list if available
+      if (_tenantLists.length > 0) sel.value = _tenantLists[0].id;
+    }
+  } catch(e) { console.warn('Could not load tenant lists:', e); }
+}
+
+// Get the full tenant list (active Firestore list or base + custom)
 function getVoidTenants() {
+  const sel = document.getElementById('void-list-select');
+  const selVal = sel ? sel.value : '__builtin__';
+  if (selVal !== '__builtin__') {
+    const list = _tenantLists.find(l => l.id === selVal);
+    if (list) return list.tenants.map(t => ({ name: t.name, cat: t.cat }));
+  }
   try {
     const custom = JSON.parse(localStorage.getItem('void_custom_tenants') || '[]');
     return [...VOID_TENANTS, ...custom];
   } catch(e) { return VOID_TENANTS; }
+}
+
+// Populate the map with logo markers for all tenants in the selected list
+async function populateMapFromList() {
+  closeVoidModal();
+  const tenants = getVoidTenants();
+  if (!tenants.length) { setStatus('No tenants in list.'); return; }
+  setStatus('Populating map with ' + tenants.length + ' tenant logos…');
+  let added = 0;
+  for (const t of tenants) {
+    const logoUrl = await getLogoFromDB(t.name);
+    if (logoUrl) {
+      addLogoToMap(t.name, logoUrl);
+      added++;
+    }
+  }
+  setStatus(`Added ${added} of ${tenants.length} logos to map. (Missing logos not yet in library.)`);
 }
 
 function clearVoidMarkers() {
