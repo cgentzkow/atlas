@@ -2219,7 +2219,7 @@ function buildRbHTML(mapImg, W, H) {
   }
   // Footer
   html+='<div style="position:absolute;bottom:0;left:0;right:0;height:'+FTR+'px;background:'+PD+';border-top:2px solid '+TEAL+';display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;">';
-  html+='<div><span style="font-size:8px;font-weight:700;color:'+TEAL+';">GENTZ COMMERCIAL</span><span style="font-size:7.5px;color:#404040;margin-left:14px;">Chris Gentzkow &middot; 562-472-6936 &middot; chris@gentz.co &middot; gentz.co</span></div>';
+  html+='<div><span style="font-size:8px;font-weight:700;color:'+TEAL+';">'+FOOTER_NAME+'</span><span style="font-size:7.5px;color:#404040;margin-left:14px;">'+FOOTER_CONTACT+'</span></div>';
   html+='<div style="font-size:6.5px;color:'+GR+';text-align:right;">Information from sources deemed reliable but not guaranteed.<br/>Atlas &middot; '+new Date().toLocaleDateString()+'</div></div>';
   return '<div style="position:relative;width:'+W+'px;height:'+H+'px;background:white;font-family:Arial,Helvetica,sans-serif;overflow:hidden;">'+html+'</div>';
 }
@@ -2298,7 +2298,7 @@ function buildVoidRbHTML(mapImg, W, H) {
   html+='</div>';
   // Footer
   html+='<div style="position:absolute;bottom:0;left:0;right:0;height:'+FTR+'px;background:'+PD+';border-top:2px solid '+TEAL+';display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;">';
-  html+='<div><span style="font-size:8px;font-weight:700;color:'+TEAL+';">GENTZ COMMERCIAL</span><span style="font-size:7.5px;color:#404040;margin-left:14px;">Chris Gentzkow &middot; 562-472-6936 &middot; chris@gentz.co &middot; gentz.co</span></div>';
+  html+='<div><span style="font-size:8px;font-weight:700;color:'+TEAL+';">'+FOOTER_NAME+'</span><span style="font-size:7.5px;color:#404040;margin-left:14px;">'+FOOTER_CONTACT+'</span></div>';
   html+='<div style="font-size:6.5px;color:'+GR+';text-align:right;">Information from sources deemed reliable but not guaranteed.<br/>Atlas &middot; '+new Date().toLocaleDateString()+'</div></div>';
   return '<div style="position:relative;width:'+W+'px;height:'+H+'px;background:white;font-family:Arial,Helvetica,sans-serif;overflow:hidden;">'+html+'</div>';
 }
@@ -3457,12 +3457,11 @@ function buildVoidLegendTable(theme, tableW, filterStatuses) {
 function buildVoidPage2Pages(W, H) {
   if (!voidData) return [];
   const { results, redMi, orangeMi, blueMi } = voidData;
-  const TEAL='#00A39E', INK='#1A1F23', PAPER='#F7F5F1', PD='#EFEBE3', GR='#989898';
+  const isDuhs = rbState?.brand === 'duhs';
+  const TEAL = isDuhs ? DUHS_ORANGE : '#00A39E', INK='#1A1F23', PAPER='#F7F5F1', PD='#EFEBE3', GR='#989898';
   const HDR=56, FTR=48;
   const STATUS_COLOR = { green:'#10b981', blue:'#3b82f6', orange:'#f97316', red:'#ef4444', purple:'#8b5cf6' };
   const STATUS_LABEL = { green:'Void', blue:'Far', orange:'Close', red:'Too Close', purple:'Relocate' };
-
-  const isDuhs = rbState?.brand === 'duhs';
   const LOGO_B64 = isDuhs ? DUHS_LOGO_B64 : GENTZ_LOGO_B64;
   const FOOTER_NAME = isDuhs ? 'DUHS COMMERCIAL' : 'GENTZ COMMERCIAL';
   const FOOTER_CONTACT = isDuhs ? 'Chris Gentzkow · 562-472-6936 · chris@duhscommercial.com · duhscommercial.com' : 'Chris Gentzkow · 562-472-6936 · chris@gentz.co · gentz.co';
