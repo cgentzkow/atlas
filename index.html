@@ -1032,7 +1032,7 @@ async function runPigeon() {
     const r = {
       id, name: c.name, address: c.address, coords: c.coords,
       color: PIGEON_COLORS[i % PIGEON_COLORS.length],
-      logoUrls: getLogoUrls(tenantName),
+      logoUrls: [], // logos loaded from Firebase (logos.gentz.co) via loadLogo()
       logoUrl:  savedLogoUrl || getLogoUrls(tenantName)[0],
       loaded: !!savedLogoUrl, size: globalSize, overlay: null,
       pigeonIndex: i + 1,
@@ -1289,17 +1289,17 @@ function getDomain(name) {
   }
   return null;
 }
+// ══════════════════════════════════════════════════════════════════
+// LOGO SOURCE: logos.gentz.co IS THE ONLY SOURCE FOR ALL LOGOS.
+// logos.gentz.co writes to the Firebase brand_logos Firestore collection.
+// All apps (Atlas, Birdie, Topo) read logos from there via getLogoFromDB().
+// DO NOT add clearbit / logo.dev / gstatic / favicon fallbacks here.
+// If a logo is missing → show initials → user adds it at logos.gentz.co.
+// ══════════════════════════════════════════════════════════════════
+// DEPRECATED: external URL fallbacks removed. Kept as empty stub so call
+// sites that reference getLogoUrls() return an empty array gracefully.
 function getLogoUrls(name) {
-  const domain = getDomain(name) || name.toLowerCase().replace(/[^a-z0-9]/g,'') + '.com';
-  return [
-    // Clearbit is most reliable for brand logos (free, good CORS)
-    `https://logo.clearbit.com/${domain}`,
-    // logo.dev as second option
-    `https://img.logo.dev/${domain}?token=pk_X0rBounQSKK5K9VUMdVpJQ&size=128&format=png`,
-    // Google favicon as reliable fallback
-    `https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=128`,
-    `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
-  ];
+  return []; // logos come only from logos.gentz.co (Firebase brand_logos)
 }
 function getInitials(name) { return name.split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
 function nextColor() { return BRAND_COLORS[(colorIdx++) % BRAND_COLORS.length]; }
@@ -1334,8 +1334,8 @@ async function addRetailer(name, address, coordsOverride) {
 
   const id = 'r' + Date.now() + Math.random().toString(36).slice(2,6);
   const color = nextColor();
-  const logoUrls = getLogoUrls(name);
-  const r = { id, name, coords, color, logoUrl:logoUrls[0], logoUrls, loaded:false, size:globalSize, overlay:null };
+  // Logo will be loaded from Firebase (logos.gentz.co) by loadLogo()
+  const r = { id, name, coords, color, logoUrl:null, logoUrls:[], loaded:false, size:globalSize, overlay:null };
   retailers.push(r);
   await loadLogo(r);
   placeOverlay(r);
@@ -1355,24 +1355,25 @@ function nearbyCoords() {
 // ════════════════════════════════════════════
 // LOGO LOADING (4-tier fallback)
 // ════════════════════════════════════════════
+// Load logo for a retailer from Firebase brand_logos (logos.gentz.co).
+// If not found there, r.loaded stays false and initials are shown.
+// To add/fix a logo, go to logos.gentz.co.
 async function loadLogo(r) {
+  const savedUrl = await getLogoFromDB(r.name);
+  if (!savedUrl) { r.loaded = false; return; }
   return new Promise(resolve => {
-    const urls = [...r.logoUrls];
-    let timeoutId = setTimeout(() => { r.loaded = false; resolve(); }, 6000);
-    function tryNext() {
-      if (!urls.length) { r.loaded = false; clearTimeout(timeoutId); resolve(); return; }
-      const url = urls.shift();
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        if (img.naturalWidth > 8 && img.naturalHeight > 8) {
-          r.logoUrl = url; r.loaded = true; clearTimeout(timeoutId); resolve();
-        } else { tryNext(); }
-      };
-      img.onerror = () => tryNext();
-      img.src = url;
-    }
-    tryNext();
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true;
+      if (ok) { r.logoUrl = savedUrl; r.loaded = true; }
+      else { r.loaded = false; }
+      resolve();
+    };
+    setTimeout(() => finish(false), 6000);
+    img.onload = () => finish(img.naturalWidth > 8 && img.naturalHeight > 8);
+    img.onerror = () => finish(false);
+    img.src = savedUrl;
   });
 }
 
@@ -2633,21 +2634,23 @@ async function placeVoidMarkers() {
 
     // Load logo (reuse cached if available)
     if (!r._voidLogoLoaded) {
+      // logos.gentz.co (Firebase brand_logos) is the ONLY logo source.
+      // If not found there, _voidLogoLoaded stays false and initials are shown.
       const savedLogo = await getLogoFromDB(r.name);
-      const urls = savedLogo ? [savedLogo, ...getLogoUrls(r.name)] : getLogoUrls(r.name);
       r._voidLogoLoaded = false;
       r._voidLogoUrl = null;
-      await new Promise(resolve => {
-        const tryUrls = [...urls];
-        function tryNext() {
-          if (!tryUrls.length) { resolve(); return; }
-          const url = tryUrls.shift();
-          const img = new Image();
+      if (savedLogo) {
+        await new Promise(resolve => {
+          const tryUrls = [savedLogo];
+          function tryNext() {
+            if (!tryUrls.length) { resolve(); return; }
+            const url = tryUrls.shift();
+            const img = new Image();
           // No crossOrigin here — CORS headers block discovery; set it only on display <img>
-          img.onload = () => {
-            if (img.naturalWidth > 8 && img.naturalHeight > 8) {
-              r._voidLogoLoaded = true; r._voidLogoUrl = url;
-              saveLogoToDB(r.name, url); // cache in brand_logos for future use
+            img.onload = () => {
+              if (img.naturalWidth > 8 && img.naturalHeight > 8) {
+                r._voidLogoLoaded = true; r._voidLogoUrl = url;
+                // (already in Firebase, no need to re-save)
               resolve();
             } else tryNext();
           };
@@ -3418,8 +3421,8 @@ function logoCell(url, name, sc, size) {
   return '<div style="width:'+size+'px;height:'+size+'px;border-radius:2px;background:'+sc+'22;display:flex;align-items:center;justify-content:center;font-size:'+Math.max(5,Math.floor(size/3))+'px;font-weight:700;color:'+sc+';margin:auto;">'+abbr+'</div>';
 }
 
-// Convert any external URL (e.g. gstatic) to base64 data URI
-// html2canvas cannot load cross-origin URLs from gstatic/favicon services
+// Convert a Firebase-hosted logo URL to base64 data URI so html2canvas can render it.
+// All logo URLs come from logos.gentz.co (Firebase brand_logos collection).
 async function ensureBase64Logo(url, name) {
   if (!url) return null;
   if (url.startsWith('data:')) return url; // already base64
