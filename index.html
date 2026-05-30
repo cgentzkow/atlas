@@ -1842,7 +1842,7 @@ function openReportBuilder() {
   };
   rbMapCache = {};
   document.getElementById('report-builder').style.display = 'flex';
-  squareAllLogos(60).then(function(){ renderRbPreview(); });
+  squareAllLogos(64).then(function(){ renderRbPreview(); });
   document.getElementById('rb-title-input').value = rbState.title;
   document.getElementById('rb-subtitle-input').value = rbState.subtitle;
   updateRbButtons();
@@ -1859,7 +1859,7 @@ function openReportBuilder() {
     }
     // Square all void logos so <img> tags in report HTML have no distortion
     showRbLoading('Squaring logos...');
-    await squareVoidLogos(18);
+    await squareVoidLogos(64);
     hideRbLoading();
     renderRbPreview();
   });
@@ -2355,7 +2355,7 @@ async function downloadRbPDF() {
         }
       }
       // Re-square with latest base64 URLs (squaredUrl from open may be stale)
-      await squareVoidLogos(18);
+      await squareVoidLogos(64);
       const allPages = buildVoidPage2Pages(W, H);
       for (let pi = 0; pi < allPages.length; pi++) {
         showRbLoading(`Building page ${pi+2} of ${allPages.length+1}...`);
@@ -3398,7 +3398,7 @@ function openVoidReportBuilder() {
     }
     // Square all void logos so <img> tags in report HTML have no distortion
     showRbLoading('Squaring logos...');
-    await squareVoidLogos(18);
+    await squareVoidLogos(64);
     hideRbLoading();
     renderRbPreview();
   });
@@ -3441,7 +3441,11 @@ async function ensureBase64Logo(url, name) {
         resolve(b64);
       } catch(e) { resolve(null); }
     };
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      // URL in Firebase is not canvas-convertible (CORS, broken link, etc.)
+      // Don't save null back — leave it for the user to fix at logos.gentz.co
+      resolve(null);
+    };
     img.src = url;
   });
 }
