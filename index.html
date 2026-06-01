@@ -1517,7 +1517,7 @@ function toggleLabels() {
 }
 function spreadLogos() {
   // Void mode: force-directed spread — logos push apart but snap back toward true location
-  if (window.voidData && voidMarkers.length) {
+  if (voidData && voidMarkers.length) {
     const active = voidMarkers.filter(m => m.latlng && m.el && m.r && m.r.coords);
     if (!active.length) return;
     const proj = active[0].getProjection();
