@@ -667,6 +667,36 @@ let pigeonData = null;
 // ════════════════════════════════════════════
 function initMap() {
 
+  // SubjectLabelOverlay: uses floatPane so it's always above all logo overlays
+  SubjectLabelOverlay = class extends google.maps.OverlayView {
+    constructor(coords, label, fullAddr) {
+      super();
+      this._coords = coords; this._label = label; this._fullAddr = fullAddr; this._div = null;
+    }
+    onAdd() {
+      const textLen = Math.min(this._label.length, 28);
+      const w = Math.max(100, textLen * 7.5 + 20);
+      const el = document.createElement('div');
+      el.style.cssText = 'position:absolute;cursor:pointer;user-select:none;';
+      el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="38" viewBox="0 0 ${w} 38">
+        <rect x="1" y="1" width="${w-2}" height="26" rx="6" fill="#fbbf24" stroke="white" stroke-width="1.5"/>
+        <polygon points="${(w/2)-7},27 ${w/2},36 ${(w/2)+7},27" fill="#fbbf24"/>
+        <text x="${w/2}" y="18" text-anchor="middle" font-size="11" font-weight="700" font-family="Arial,Helvetica,sans-serif" fill="#1a1a1a">${this._label.length>28?this._label.slice(0,27)+'…':this._label}</text>
+      </svg>`;
+      el.title = this._fullAddr || 'Subject Property';
+      this._div = el; this._w = w;
+      this.getPanes().floatPane.appendChild(el);
+    }
+    draw() {
+      if (!this._div) return;
+      const proj = this.getProjection();
+      const pt = proj.fromLatLngToDivPixel(new google.maps.LatLng(this._coords.lat, this._coords.lng));
+      this._div.style.left = (pt.x - this._w / 2) + 'px';
+      this._div.style.top  = (pt.y - 36) + 'px';
+    }
+    onRemove() { if (this._div) { this._div.parentNode?.removeChild(this._div); this._div = null; } }
+  };
+
   LogoOverlay = class extends google.maps.OverlayView {
     constructor(latlng, retailer) {
       super();
@@ -894,41 +924,8 @@ function geocodeSubjectManual() {
   });
 }
 
-// Subject label rendered as floatPane OverlayView so it always appears above logo overlays
 let _subjectOverlay = null;
-class SubjectLabelOverlay extends google.maps.OverlayView {
-  constructor(coords, label, fullAddr) {
-    super();
-    this._coords = coords;
-    this._label = label;
-    this._fullAddr = fullAddr;
-    this._div = null;
-  }
-  onAdd() {
-    const textLen = Math.min(this._label.length, 28);
-    const w = Math.max(100, textLen * 7.5 + 20);
-    const el = document.createElement('div');
-    el.style.cssText = 'position:absolute;cursor:pointer;user-select:none;';
-    el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="38" viewBox="0 0 ${w} 38">
-      <rect x="1" y="1" width="${w-2}" height="26" rx="6" fill="#fbbf24" stroke="white" stroke-width="1.5"/>
-      <polygon points="${(w/2)-7},27 ${w/2},36 ${(w/2)+7},27" fill="#fbbf24"/>
-      <text x="${w/2}" y="18" text-anchor="middle" font-size="11" font-weight="700" font-family="Arial,Helvetica,sans-serif" fill="#1a1a1a">${this._label.length>28?this._label.slice(0,27)+'…':this._label}</text>
-    </svg>`;
-    el.title = this._fullAddr || 'Subject Property';
-    this._div = el;
-    this._w = w;
-    // floatPane = always on top of all other overlays
-    this.getPanes().floatPane.appendChild(el);
-  }
-  draw() {
-    if (!this._div) return;
-    const proj = this.getProjection();
-    const pt = proj.fromLatLngToDivPixel(new google.maps.LatLng(this._coords.lat, this._coords.lng));
-    this._div.style.left = (pt.x - this._w / 2) + 'px';
-    this._div.style.top  = (pt.y - 36) + 'px';
-  }
-  onRemove() { if (this._div) { this._div.parentNode?.removeChild(this._div); this._div = null; } }
-}
+let SubjectLabelOverlay = null; // defined in initMap after Maps API loads
 
 function setSubjectLocation(coords, displayName) {
   subjectLatLng = coords;
