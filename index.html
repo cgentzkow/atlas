@@ -1516,6 +1516,57 @@ function toggleLabels() {
   retailers.forEach(r => refreshOverlay(r));
 }
 function spreadLogos() {
+  // Void mode: force-directed spread — logos push apart but snap back toward true location
+  if (window.voidData && voidMarkers.length) {
+    const active = voidMarkers.filter(m => m.latlng && m.el && m.r && m.r.coords);
+    if (!active.length) return;
+    const proj = active[0].getProjection();
+    if (!proj) return;
+
+    const SIZE = 30;        // logo tile px — push apart if closer than this
+    const ITERS = 60;       // iterations of the simulation
+    const PULL = 0.12;      // how strongly each logo snaps back to true position each iter
+
+    // Build pixel-space positions; store true (original) pixel position separately
+    const pos = active.map(m => {
+      const cur = proj.fromLatLngToDivPixel(m.latlng);
+      const orig = proj.fromLatLngToDivPixel(
+        new google.maps.LatLng(m.r.coords.lat, m.r.coords.lng));
+      return { x: cur.x, y: cur.y, ox: orig.x, oy: orig.y, m };
+    });
+
+    for (let iter = 0; iter < ITERS; iter++) {
+      // Repulsion: push overlapping logos apart
+      for (let i = 0; i < pos.length; i++) {
+        for (let j = i + 1; j < pos.length; j++) {
+          const dx = pos[j].x - pos[i].x, dy = pos[j].y - pos[i].y;
+          const dist = Math.sqrt(dx*dx + dy*dy) || 0.001;
+          if (dist < SIZE) {
+            const force = (SIZE - dist) / SIZE * 0.6;
+            const nx = dx/dist, ny = dy/dist;
+            pos[i].x -= nx * force;  pos[i].y -= ny * force;
+            pos[j].x += nx * force;  pos[j].y += ny * force;
+          }
+        }
+      }
+      // Pull: each logo drifts back toward its true location
+      pos.forEach(p => {
+        p.x += (p.ox - p.x) * PULL;
+        p.y += (p.oy - p.y) * PULL;
+      });
+    }
+
+    // Apply final positions to overlays
+    pos.forEach(p => {
+      const ll = proj.fromDivPixelToLatLng(new google.maps.Point(p.x, p.y));
+      p.m.latlng = ll;
+      p.m.draw();
+    });
+    setStatus('Void logos spread — drag any tile to reposition.');
+    return;
+  }
+
+  // Regular mode: arrange in rings around subject
   if (!subjectLatLng || !retailers.length) return;
   const n = retailers.length, baseR = 0.0012;
   retailers.forEach((r, i) => {
