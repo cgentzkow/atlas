@@ -2120,7 +2120,10 @@ function squareLogoUrl(url, size) {
   return new Promise(function(resolve) {
     if (!url) { resolve(''); return; }
     var img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for actual URLs (not data URIs — they don't need it)
+    if (!url.startsWith('data:')) img.crossOrigin = 'anonymous';
+    var done = false;
+    var finish = function(result) { if (!done) { done = true; resolve(result); } };
     img.onload = function() {
       try {
         var c = document.createElement('canvas');
@@ -2128,15 +2131,21 @@ function squareLogoUrl(url, size) {
         var ctx = c.getContext('2d');
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, size, size);
-        var scale = Math.min(size / img.width, size / img.height) * 0.85;
-        var w = img.width * scale, h = img.height * scale;
+        // Use naturalWidth/naturalHeight as they're more reliable than width/height
+        var iw = img.naturalWidth || img.width || size;
+        var ih = img.naturalHeight || img.height || size;
+        var scale = Math.min(size / iw, size / ih) * 0.85;
+        var w = iw * scale, h = ih * scale;
         ctx.drawImage(img, (size-w)/2, (size-h)/2, w, h);
-        resolve(c.toDataURL('image/png'));
-      } catch(e) { resolve(url); }
+        finish(c.toDataURL('image/png'));
+      } catch(e) {
+        // Canvas tainted (CORS) or other error — fall back to original URL
+        finish(url);
+      }
     };
-    img.onerror = function() { resolve(url); };
+    img.onerror = function() { finish(url); };
     img.src = url;
-    setTimeout(function() { resolve(url); }, 4000);
+    setTimeout(function() { finish(url); }, 5000);
   });
 }
 
@@ -3416,8 +3425,9 @@ function logoCell(url, name, sc, size) {
   const abbr = escHtml((name||'').slice(0,2).toUpperCase());
   if (url) {
     const safeUrl = url.replace(/"/g, '&quot;');
-    return '<div style="width:'+size+'px;height:'+size+'px;margin:auto;overflow:hidden;display:flex;align-items:center;justify-content:center;">'
-      + '<img src="'+safeUrl+'" width="'+size+'" height="'+size+'" style="width:'+size+'px;height:'+size+'px;display:block;" crossorigin="anonymous"/></div>';
+    // Use background-image + background-size:contain so html2canvas never distorts logos,
+    // regardless of whether the source image is square or not.
+    return '<div style="width:'+size+'px;height:'+size+'px;margin:auto;background-image:url("'+safeUrl+'");background-size:contain;background-repeat:no-repeat;background-position:center;background-color:white;border-radius:2px;"></div>';
   }
   return '<div style="width:'+size+'px;height:'+size+'px;border-radius:2px;background:'+sc+'22;display:flex;align-items:center;justify-content:center;font-size:'+Math.max(5,Math.floor(size/3))+'px;font-weight:700;color:'+sc+';margin:auto;">'+abbr+'</div>';
 }
