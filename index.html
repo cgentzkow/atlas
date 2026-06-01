@@ -269,7 +269,11 @@
   <a href="https://logos-9ln.pages.dev" target="_blank" class="btn-gray" style="text-decoration:none;font-size:12px;" title="Open Logo Library">🎨 Logos</a>
   <button class="btn-pigeon" onclick="openPigeonModal()" title="Find closest locations of a specific tenant">🐦 Pigeon</button>
   <button class="btn-void" onclick="openVoidModal()" title="Run void analysis for all top pad tenants">🔍 Void</button>
-  <button class="btn-amber" onclick="spreadLogos()" title="Arrange logos in a circle">📐 Spread</button>
+  <div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,0.1);border-radius:6px;padding:2px 8px;">
+    <button class="btn-amber" onclick="spreadLogos()" style="margin:0;padding:4px 8px;">📐 Spread</button>
+    <input type="range" id="spread-slider" min="1" max="10" value="5" step="1" style="width:72px;accent-color:#f59e0b;cursor:pointer;" title="1=tight · 10=max"/>
+    <span id="spread-val" style="font-size:11px;color:#f59e0b;min-width:14px;">5</span>
+  </div>
   <button class="btn-green" onclick="exportMap()" title="Download as PNG">💾 Export PNG</button>
 </div>
 
@@ -1516,66 +1520,45 @@ function toggleLabels() {
   retailers.forEach(r => refreshOverlay(r));
 }
 function spreadLogos() {
-  // Void mode: force-directed spread — logos push apart but snap back toward true location
-  if (voidData && voidMarkers.length) {
-    const active = voidMarkers.filter(m => m.latlng && m.el && m.r && m.r.coords);
+  if (typeof voidData !== 'undefined' && voidData && typeof voidMarkers !== 'undefined' && voidMarkers.length) {
+    const active = voidMarkers.filter(m => m.latlng && m.el);
     if (!active.length) return;
     const proj = active[0].getProjection();
     if (!proj) return;
-
-    const SIZE = 30;        // logo tile px — push apart if closer than this
-    const ITERS = 60;       // iterations of the simulation
-    const PULL = 0.12;      // how strongly each logo snaps back to true position each iter
-
-    // Build pixel-space positions; store true (original) pixel position separately
+    const sliderVal = parseInt(document.getElementById('spread-slider')?.value || 5);
+    const SIZE = 24 + sliderVal * 12;
+    const ITERS = 60 + sliderVal * 14;
+    const PULL = Math.max(0.01, 0.15 - sliderVal * 0.013);
     const pos = active.map(m => {
       const cur = proj.fromLatLngToDivPixel(m.latlng);
-      const orig = proj.fromLatLngToDivPixel(
-        new google.maps.LatLng(m.r.coords.lat, m.r.coords.lng));
+      const orig = proj.fromLatLngToDivPixel(new google.maps.LatLng(m.r.coords.lat, m.r.coords.lng));
       return { x: cur.x, y: cur.y, ox: orig.x, oy: orig.y, m };
     });
-
     for (let iter = 0; iter < ITERS; iter++) {
-      // Repulsion: push overlapping logos apart
       for (let i = 0; i < pos.length; i++) {
-        for (let j = i + 1; j < pos.length; j++) {
-          const dx = pos[j].x - pos[i].x, dy = pos[j].y - pos[i].y;
-          const dist = Math.sqrt(dx*dx + dy*dy) || 0.001;
+        for (let j = i+1; j < pos.length; j++) {
+          const dx = pos[j].x-pos[i].x, dy = pos[j].y-pos[i].y;
+          const dist = Math.sqrt(dx*dx+dy*dy)||0.001;
           if (dist < SIZE) {
-            const force = (SIZE - dist) / SIZE * 0.6;
-            const nx = dx/dist, ny = dy/dist;
-            pos[i].x -= nx * force;  pos[i].y -= ny * force;
-            pos[j].x += nx * force;  pos[j].y += ny * force;
+            const f = (SIZE-dist)/SIZE*0.9, nx = dx/dist, ny = dy/dist;
+            pos[i].x -= nx*f; pos[i].y -= ny*f;
+            pos[j].x += nx*f; pos[j].y += ny*f;
           }
         }
       }
-      // Pull: each logo drifts back toward its true location
-      pos.forEach(p => {
-        p.x += (p.ox - p.x) * PULL;
-        p.y += (p.oy - p.y) * PULL;
-      });
+      pos.forEach(p => { p.x += (p.ox-p.x)*PULL; p.y += (p.oy-p.y)*PULL; });
     }
-
-    // Apply final positions to overlays
-    pos.forEach(p => {
-      const ll = proj.fromDivPixelToLatLng(new google.maps.Point(p.x, p.y));
-      p.m.latlng = ll;
-      p.m.draw();
-    });
-    setStatus('Void logos spread — drag any tile to reposition.');
+    pos.forEach(p => { const ll = proj.fromDivPixelToLatLng(new google.maps.Point(p.x,p.y)); p.m.latlng=ll; p.m.draw(); });
     return;
   }
-
-  // Regular mode: arrange in rings around subject
   if (!subjectLatLng || !retailers.length) return;
   const n = retailers.length, baseR = 0.0012;
   retailers.forEach((r, i) => {
-    const ring = Math.floor(i/12), pos = i%12, countInRing = Math.min(12, n - ring*12);
-    const angle = (pos/countInRing) * 2 * Math.PI, radius = baseR * (ring+1);
-    r.coords = { lat: subjectLatLng.lat + radius*Math.sin(angle), lng: subjectLatLng.lng + radius*Math.cos(angle)*1.4 };
+    const ring = Math.floor(i/12), p = i%12, c = Math.min(12, n-ring*12);
+    const angle = (p/c)*2*Math.PI, radius = baseR*(ring+1);
+    r.coords = { lat: subjectLatLng.lat+radius*Math.sin(angle), lng: subjectLatLng.lng+radius*Math.cos(angle)*1.4 };
     if (r.overlay) { r.overlay.latlng = new google.maps.LatLng(r.coords.lat, r.coords.lng); r.overlay.draw(); }
   });
-  setStatus('Logos spread around subject property.');
 }
 
 // ════════════════════════════════════════════
@@ -2144,6 +2127,7 @@ function _ssApply() {
 
 // Wire live preview on all shape styler inputs
 document.addEventListener('DOMContentLoaded', () => {
+  const _spr=document.getElementById('spread-slider'); if(_spr) _spr.addEventListener('input',()=>{const v=document.getElementById('spread-val');if(v)v.textContent=_spr.value;});
   const _ss = document.getElementById('spread-slider');
   if (_ss) _ss.addEventListener('input', () => { const v = document.getElementById('spread-val'); if(v) v.textContent = _ss.value; });
   ['ss-color','ss-weight','ss-opacity','ss-ring-opacity'].forEach(id => {
