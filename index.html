@@ -2144,8 +2144,8 @@ function _ssApply() {
 
 // Wire live preview on all shape styler inputs
 document.addEventListener('DOMContentLoaded', () => {
-  const ss = document.getElementById('spread-slider');
-  if (ss) ss.addEventListener('input', () => { const v = document.getElementById('spread-val'); if (v) v.textContent = ss.value; });
+  const _ss = document.getElementById('spread-slider');
+  if (_ss) _ss.addEventListener('input', () => { const v = document.getElementById('spread-val'); if(v) v.textContent = _ss.value; });
   ['ss-color','ss-weight','ss-opacity','ss-ring-opacity'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', _ssApply);
